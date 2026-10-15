@@ -2,6 +2,8 @@
 
 A free Windows desktop reader for listening to your books with local Kokoro voices.
 
+**Download page, voice samples and updates:** https://quiet-pages.abuzzlion9.chatgpt.site
+
 ## Windows download
 
 Download `QuietPages-Windows-x64.zip` from this project's Releases, extract the entire folder, then open `QuietPages.exe`. No Python installation is needed. A release is not available until the maintainer uploads a tested build.
@@ -10,7 +12,8 @@ The first Play or Preview downloads roughly 350 MB of model and voice data from 
 
 ## Features
 
-- Open DRM-free EPUB, text-based PDF and TXT books.
+- Open Word (.docx), DRM-free EPUB, text-based PDF and TXT books.
+- Choose a chapter, jump between chapters, and optionally stop after a chapter.
 - Nine American and British English male/female voices.
 - Preview a narrator, adjust speed from 0.5 to 2.0, pause, resume and stop.
 - Move between passages and resume at the last saved passage when reopening a book.
@@ -21,6 +24,14 @@ Start with Heart or Bella. Emma offers a British female alternative; Michael and
 ## Current limitations
 
 This is an early prototype. Scanned PDFs need OCR first. DRM-protected books are unsupported. PDF columns, headers and unusual layouts may read imperfectly. English narration only in this version. Bookmarks resume at the start of a passage, not an exact audio timestamp. Synthesis happens one passage at a time, so slower computers may pause between passages. The portable build is unsigned. Windows ARM and clean-machine compatibility still need separate validation.
+
+## Word documents and chapters
+
+Open .docx directly, with no Microsoft Word installation required. Ordinary paragraphs, hyperlink text and table cells are read in document order. Images, headers, footers and footnotes are not read. Older .doc files need to be saved as .docx in Word or LibreOffice first.
+
+Use Heading 1 on chapter titles for best results. Inherited heading styles and explicit outline levels are recognized. EPUB chapters use contents links and reading order, including multiple chapters in one file. PDFs use top-level bookmarks at page boundaries. Standalone headings such as Chapter 1, Chapter Two, Prologue and Epilogue are a fallback for unstructured text. Documents without headings open as one section.
+
+Stop playback to choose a different chapter. Leave “Stop after this chapter” unchecked for continuous reading; check it to finish the current chapter and wait at the next one. Chapter-aware importing changes passage boundaries, so some books opened in an older version may start from the beginning once after upgrading.
 
 ## Run from source
 
