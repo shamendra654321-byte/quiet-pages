@@ -72,7 +72,7 @@ class Reader:
         self.speed = tk.DoubleVar(value=1)
         ttk.Label(settings, text='Speed').pack(side='left', padx=(8, 4))
         ttk.Spinbox(settings, from_=0.5, to=2, increment=0.1, textvariable=self.speed, width=5).pack(side='left')
-        self.text = tk.Text(frame, wrap='word', font=('Georgia', 17), bg='#fffdf8', fg='#243d38', relief='flat', padx=24, pady=24)
+        self.text = tk.Text(frame, height=4, wrap='word', font=('Georgia', 17), bg='#fffdf8', fg='#243d38', relief='flat', padx=24, pady=24)
         self.text.pack(fill='both', expand=True)
         self.show_text('Welcome to your listening nook.\n\nOpen a book, choose a voice and press Play.\n\nThe first playback downloads the free voice pack (about 350 MB). After that, your books are read entirely on this computer.')
         controls = ttk.Frame(frame)
