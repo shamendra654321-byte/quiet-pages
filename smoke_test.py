@@ -5,6 +5,10 @@ import wave
 import queue
 import threading
 import time
+import tempfile
+from pathlib import Path
+from audio_cache import AudioCache
+from reader_core import load_document
 from chapter_audio import read_book
 from app import Reader, DATA
 
@@ -50,6 +54,22 @@ def run():
     assert len(words) == sum(len(part.split()) for part in parts), 'Missing word timestamps'
     assert [parts[i][left:right] for i, left, right in words] == ' '.join(parts).split()
     results.append(f'Streaming: first audio {first_audio[0]:.2f}s after engine load; {len(words)} timed words, two chapters')
+    with tempfile.TemporaryDirectory() as folder:
+        cache = AudioCache(Path(folder) / 'cache')
+        for attempt in range(2):
+            def no_engine():
+                raise AssertionError('Replay should not load the voice engine')
+            read_book(engine if attempt == 0 else no_engine, ['The garden was quiet.'], 0, 1, [0],
+                      'af_heart', 1, threading.Event(), threading.Event(), queue.Queue(),
+                      RecordingStream, cache=cache)
+        from PIL import Image, ImageDraw, ImageFont
+        image = Image.new('RGB', (1200, 1600), 'white')
+        font = ImageFont.truetype('C:/Windows/Fonts/arial.ttf', 40)
+        ImageDraw.Draw(image).text((100, 200), 'The quiet garden was full of flowers.', font=font, fill='black')
+        scan = Path(folder) / 'scan.pdf'
+        image.save(scan, 'PDF')
+        assert 'quiet garden' in ' '.join(load_document(scan).parts).lower()
+    results.append('Persistent cache replay and offline scanned PDF recognition passed')
     root.destroy()
     (DATA / 'smoke-test.txt').write_text('\n'.join(results), encoding='utf-8')
     print('\n'.join(results))

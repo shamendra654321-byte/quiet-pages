@@ -61,6 +61,25 @@ class PlaybackTests(unittest.TestCase):
         self.run_playback()
         self.assertEqual(self.engine.spoken, ['First.', 'More.', 'Last.'])
 
+    def test_rewind_crosses_passage_and_timer_stops(self):
+        self.reader.index = 1
+        self.reader.cursor = (1, 5)
+        self.reader.durations[0] = 30
+        self.reader.rewind()
+        self.assertEqual(self.reader.cursor, (0, 20))
+        self.reader.sleep_deadline = time.monotonic() - 1
+        self.reader.poll()
+        self.assertTrue(self.reader.cancel.is_set())
+        self.assertIsNone(self.reader.sleep_deadline)
+
+    def test_seek_waits_for_old_worker_before_restart(self):
+        self.reader.playing = True
+        self.reader.set_busy(True)
+        self.reader.seek_to(1, 2)
+        self.assertTrue(self.reader.cancel.is_set())
+        self.assertEqual(self.reader.restart_at, (1, 2))
+        self.assertTrue(self.reader.busy)
+
     def test_continuous_and_saved_position(self):
         self.run_playback()
         self.assertEqual(self.engine.spoken, ['First.', 'More.', 'Last.'])

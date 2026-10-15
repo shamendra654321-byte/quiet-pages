@@ -14,6 +14,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from reader_core import load_document
 from chapter_audio import read_book
+from audio_cache import AudioCache
 from app_version import VERSION
 import updates
 
@@ -53,7 +54,15 @@ class Reader:
         self.pending_highlights = []
         self.highlight_sequence = 0
         self.prepared_chapters = set()
+        self.cursor = (0, 0)
+        self.durations = {}
+        self.restart_at = None
+        self.sleep_deadline = None
+        self.playing = False
+        self.audio_settings = None
+        self.seeking = False
         DATA.mkdir(parents=True, exist_ok=True)
+        self.audio_cache = AudioCache(DATA / 'audio-cache')
         try:
             self.saved = json.loads((DATA / 'progress.json').read_text())
         except (OSError, ValueError):
@@ -115,6 +124,25 @@ class Reader:
         self.chapter_only = tk.BooleanVar(value=False)
         self.chapter_option = ttk.Checkbutton(frame, text='Stop after this chapter', variable=self.chapter_only)
         self.chapter_option.pack(anchor='w', pady=(0, 8))
+        extras = ttk.Frame(frame)
+        extras.pack(fill='x', pady=(0, 8))
+        self.smooth = tk.BooleanVar(value=False)
+        ttk.Checkbutton(extras, text='Extra buffering (slower PCs)', variable=self.smooth).pack(side='left')
+        ttk.Label(extras, text='Sleep timer').pack(side='left', padx=(12, 4))
+        self.sleep_choice = ttk.Combobox(extras, values=['Off', '15 minutes', '30 minutes', '60 minutes'], state='readonly', width=12)
+        self.sleep_choice.current(0)
+        self.sleep_choice.pack(side='left')
+        self.sleep_choice.bind('<<ComboboxSelected>>', self.set_sleep_timer)
+        ttk.Button(extras, text='↶ 15 seconds', command=self.rewind).pack(side='right')
+        seek_row = ttk.Frame(frame)
+        seek_row.pack(fill='x')
+        ttk.Label(seek_row, text='Seek in chapter').pack(side='left')
+        self.seek = ttk.Scale(seek_row, from_=0, to=1)
+        self.seek.pack(side='left', fill='x', expand=True, padx=8)
+        self.seek.bind('<ButtonRelease-1>', self.seek_in_chapter)
+        self.seek.bind('<ButtonPress-1>', lambda event: setattr(self, 'seeking', True))
+        self.clean_pdf = tk.BooleanVar(value=True)
+        help_menu.add_checkbutton(label='Remove repeated PDF headers and page numbers', variable=self.clean_pdf)
         self.text = tk.Text(frame, height=4, wrap='word', font=('Georgia', 17), bg='#fffdf8', fg='#243d38', relief='flat', padx=24, pady=24)
         self.show_text('Welcome to your listening nook.\n\nOpen a book, choose a voice and press Play.\n\nThe first playback downloads the free voice pack (about 350 MB). After that, your books are read entirely on this computer.')
         controls = ttk.Frame(frame)
@@ -207,6 +235,9 @@ class Reader:
         self.text.tag_add('reading', f'1.0+{offset}c', f'1.0+{offset + len(self.parts[self.index])}c')
         self.text.see(f'1.0+{offset}c')
         self.chapter_picker.current(chapter)
+        if not self.seeking:
+            self.seek.configure(to=len(self.chapters[chapter].parts) - .001)
+            self.seek.set(local_index)
         self.position.configure(text=f'{self.index - self.chapter_starts[chapter] + 1} / {len(self.chapters[chapter].parts)} in chapter')
         self.save()
 
@@ -235,8 +266,51 @@ class Reader:
             if kind == 'position':
                 self.index = value
                 self.display()
+            elif kind == 'cursor':
+                self.cursor = value
+                if not self.seeking and self.parts:
+                    index, seconds = value
+                    duration = self.durations.get(index, 0)
+                    self.seek.set(index - self.chapter_starts[self.current_chapter()] + (seconds / duration if duration else 0))
             else:
                 self.show_word(value)
+
+    def set_sleep_timer(self, event=None):
+        value = self.sleep_choice.get()
+        self.sleep_deadline = None if value == 'Off' else time.monotonic() + int(value.split()[0]) * 60
+
+    def seek_in_chapter(self, event=None):
+        self.seeking = False
+        if self.parts and (not self.busy or self.playing):
+            chapter = self.current_chapter()
+            value = self.seek.get()
+            local = min(len(self.chapters[chapter].parts) - 1, int(value))
+            target = self.chapter_starts[chapter] + local
+            seconds = (value - local) * self.durations.get(target, 0)
+            self.seek_to(target, seconds)
+
+    def seek_to(self, index, seconds):
+        if self.playing:
+            self.stop()
+            self.restart_at = (index, seconds)
+        elif not self.busy:
+            self.index = index
+            self.cursor = (index, seconds)
+            self.display()
+
+    def rewind(self):
+        if not self.parts or (self.busy and not self.playing):
+            return
+        index, seconds = self.cursor if self.cursor[0] == self.index else (self.index, 0)
+        seconds -= 15
+        while seconds < 0 and index > self.chapter_starts[self.current_chapter()]:
+            index -= 1
+            duration = self.durations.get(index)
+            if duration is None:
+                seconds = 0
+                break
+            seconds += duration
+        self.seek_to(index, max(0, seconds))
 
     def current_chapter(self):
         return max(0, bisect_right(self.chapter_starts, self.index) - 1)
@@ -244,12 +318,14 @@ class Reader:
     def select_chapter(self, event=None):
         if self.chapters and not self.busy:
             self.index = self.chapter_starts[self.chapter_picker.current()]
+            self.cursor = (self.index, 0)
             self.display()
 
     def move_chapter(self, step):
         if self.chapters and not self.busy:
             chapter = max(0, min(len(self.chapters) - 1, self.current_chapter() + step))
             self.index = self.chapter_starts[chapter]
+            self.cursor = (self.index, 0)
             self.display()
 
     def save(self):
@@ -266,13 +342,17 @@ class Reader:
         if not name:
             return
         self.set_busy(True)
+        self.cancel.clear()
         self.status.configure(text='Opening book…')
+        clean_pdf = self.clean_pdf.get()
         def work():
             try:
-                book = load_document(name)
+                book = load_document(name, progress=lambda text: self.events.put(('status', text)), cancel=self.cancel, clean_pdf=clean_pdf)
                 parts = book.parts
                 identity = hashlib.sha256('\n'.join(parts).encode()).hexdigest()
                 self.events.put(('book', (Path(name).stem, book, identity)))
+            except InterruptedError:
+                pass
             except Exception as exc:
                 self.events.put(('error', str(exc)))
             finally:
@@ -282,6 +362,7 @@ class Reader:
     def move(self, step):
         if self.parts and not self.busy:
             self.index = max(0, min(len(self.parts) - 1, self.index + step))
+            self.cursor = (self.index, 0)
             self.display()
 
     def set_busy(self, value):
@@ -328,7 +409,13 @@ class Reader:
             messagebox.showerror('Speed', 'Choose a speed between 0.5 and 2.0.')
             return
         voice = VOICES[self.voice.get()]
+        if not preview and self.audio_settings != (voice, speed):
+            self.durations.clear()
+            self.cursor = (self.index, 0)
+            self.audio_settings = (voice, speed)
         start = self.index
+        start_seconds = self.cursor[1] if self.cursor[0] == start and not preview else 0
+        reserve = 12 if self.smooth.get() else 0
         parts = ['Settle into your favourite chair and let the story begin. The evening light slipped across the quiet room, and a new adventure waited on the next page.'] if preview else list(self.parts)
         end = len(parts)
         chapter_starts = list(self.chapter_starts)
@@ -342,14 +429,15 @@ class Reader:
         self.paused.clear()
         self.pause.configure(text='Pause')
         self.set_busy(True)
+        self.playing = not preview
         self.status.configure(text='Preparing your voice…')
         def work():
             try:
-                engine = self.get_engine()
                 import sounddevice as sd
                 first = 0 if preview else start
-                read_book(engine, parts, first, end, chapter_starts if not preview else [0],
-                          voice, speed, self.cancel, self.paused, self.events, sd.OutputStream, preview)
+                read_book(self.get_engine, parts, first, end, chapter_starts if not preview else [0],
+                          voice, speed, self.cancel, self.paused, self.events, sd.OutputStream, preview,
+                          cache=self.audio_cache, start_seconds=start_seconds, buffer_seconds=reserve)
             except InterruptedError:
                 pass
             except Exception as exc:
@@ -369,6 +457,7 @@ class Reader:
             self.pause.configure(text='Resume')
 
     def stop(self):
+        self.restart_at = None
         self.cancel.set()
         self.pending_highlights.clear()
         self.paused.clear()
@@ -395,14 +484,18 @@ class Reader:
                     self.prepared_chapters.add(value)
                     if value == self.current_chapter() + 1 and str(self.status.cget('text')).startswith('Reading aloud'):
                         self.status.configure(text='Reading aloud · Next chapter ready')
+                elif kind == 'duration':
+                    self.durations[value[0]] = value[1]
                 elif kind == 'book':
                     self.shown_chapter = None
                     name, book, self.book_id = value
                     self.parts = book.parts
+                    self.durations.clear()
                     self.chapters = book.chapters
                     self.chapter_starts = book.starts
                     self.chapter_picker.configure(values=[f'{i + 1}. {chapter.title}' for i, chapter in enumerate(self.chapters)])
                     self.index = max(0, min(int(self.saved.get(self.book_id, 0)), len(self.parts) - 1))
+                    self.cursor = (self.index, 0)
                     self.title.configure(text=name[:28])
                     self.display()
                 elif kind == 'error':
@@ -410,10 +503,19 @@ class Reader:
                     messagebox.showerror('Quiet Pages', value)
                 elif kind == 'done':
                     self.flush_highlights(finish=True)
+                    if not self.cancel.is_set():
+                        self.cursor = (self.index, 0)
                     self.pending_highlights.clear()
                     self.set_busy(False)
+                    self.playing = False
                     self.pause.configure(text='Pause')
                     self.status.configure(text='Ready · Your place is saved')
+                    if self.restart_at is not None:
+                        self.index, seconds = self.restart_at
+                        self.cursor = (self.index, seconds)
+                        self.restart_at = None
+                        self.display()
+                        self.root.after_idle(self.start)
                 elif kind == 'update_found':
                     self.available_update, manual = value
                     self.update_busy = False
@@ -438,6 +540,10 @@ class Reader:
         except queue.Empty:
             pass
         self.flush_highlights()
+        if self.sleep_deadline is not None and time.monotonic() >= self.sleep_deadline:
+            self.sleep_deadline = None
+            self.sleep_choice.set('Off')
+            self.stop()
         self.root.after(20, self.poll)
 
     def close(self):

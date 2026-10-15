@@ -1,5 +1,16 @@
 # Prototype validation — 15 October 2026
 
+## Saved audio, PDF OCR and installer update
+
+- 41 automated tests passed locally: cache replay without an engine load, exact samples after seeking, cache invalidation/corruption/quota, short-chapter buffering without deadlock, rewind, sleep expiry, safe seek restart, margin cleanup preserving body text, offline image-only PDF recognition and cancellation, plus existing tests.
+- Real synthesis passed for Heart, Bella, Emma and Michael. Two chapters matched all 21 visible words; opening audio took 0.38 seconds after engine load in this run. This excludes download/loading and is not a speed guarantee.
+- The packaged self-test now checks cache replay and offline OCR. Publication is gated on installer setup, that self-test, and uninstall preserving books/model data on a disposable Windows runner.
+- Outstanding: verified publisher signing (no certificate/account available), physical speakers/Bluetooth, diverse books and ordinary low-end Windows PCs.
+
+### Ordinary Windows PC acceptance checks
+
+Use Windows 10/11 x64 without Python: install Setup, launch from Start, download voices, disconnect internet, read DOCX/EPUB and scanned PDF, replay, seek/rewind while playing, pause/resume, expire a sleep timer, update inside the app and uninstall. Confirm books/data remain. Compare default playback and Extra buffering on a slower PC; record CPU/RAM, first-audio wait and audible gaps. Verify the unsigned publisher warning remains truthful.
+
 ## Preview 5: early playback, preparation ahead and word timing
 
 - 34 automated tests passed, including playback starting before later synthesis finishes, preparation of the following chapter during current playback, one stream across chapters, sample preservation, pause/resume, stop/cancellation, worker failure propagation, source word offsets, number expansion, timing fallback, and delayed/cancelled UI highlights.

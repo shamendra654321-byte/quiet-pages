@@ -41,7 +41,7 @@ class ImportTests(unittest.TestCase):
             writer = PdfWriter()
             writer.add_blank_page(width=600, height=800)
             writer.write(path)
-            with self.assertRaisesRegex(ValueError, 'OCR'):
+            with self.assertRaisesRegex(ValueError, 'No readable text'):
                 load_book(path)
 
     def test_word_headings_tables_and_deleted_text(self):

@@ -13,62 +13,91 @@ MAX_BUFFER_BYTES = 256 * 1024 * 1024
 
 
 def read_book(engine, parts, start, end, chapter_starts, voice, speed, cancel,
-              paused, events, stream_factory, preview=False):
+              paused, events, stream_factory, preview=False, cache=None, start_seconds=0, buffer_seconds=0):
     chapters = chapter_starts or [0]
     chapter_for = lambda index: max(0, bisect_right(chapters, index) - 1)
     condition = threading.Condition()
-    state = {'chapter': chapter_for(start), 'bytes': 0}
+    state = {'chapter': chapter_for(start), 'bytes': 0, 'seconds': 0, 'finished': False, 'blocked': False}
     ready = queue.Queue()
     shutdown = threading.Event()
     lang = 'en-gb' if voice.startswith('b') else 'en-us'
     stopped = lambda: cancel.is_set() or shutdown.is_set()
     pronunciation_cache = {}
-    def phonemize(word):
-        if word not in pronunciation_cache:
-            if len(pronunciation_cache) >= 4096:
-                pronunciation_cache.clear()
-            pronunciation_cache[word] = engine.tokenizer.phonemize(word, lang)
-        return pronunciation_cache[word]
-
     with tempfile.TemporaryDirectory(prefix='quiet-pages-audio-') as folder:
         def produce():
             try:
                 serial = 0
                 for index in range(start, end):
                     chapter = chapter_for(index)
-                    for offset, text in speech_sections(parts[index], first=index == start):
+                    elapsed = 0
+                    for offset, text in speech_sections(parts[index], first=True):
                         with condition:
                             while not stopped() and (chapter > state['chapter'] + 1 or state['bytes'] >= MAX_BUFFER_BYTES):
+                                state['blocked'] = True
+                                condition.notify_all()
                                 condition.wait(0.05)
+                            state['blocked'] = False
                         if stopped():
                             return
-                        if getattr(engine, 'has_timings', False):
-                            samples, rate, spoken = engine.create_timed(text, voice=voice, speed=speed, lang=lang)
-                            words = word_timings(text, spoken, phonemize) if not preview else []
+                        cached = cache.get(text, voice, speed) if cache and not preview else None
+                        active_engine = engine() if cached is None and callable(engine) else engine
+                        if cached is not None:
+                            samples, rate, words = cached
+                        elif getattr(active_engine, 'has_timings', False):
+                            samples, rate, spoken = active_engine.create_timed(text, voice=voice, speed=speed, lang=lang)
+                            # Resolve lazy engines only on a cache miss.
+                            def active_phonemize(word):
+                                if word not in pronunciation_cache:
+                                    if len(pronunciation_cache) >= 4096:
+                                        pronunciation_cache.clear()
+                                    pronunciation_cache[word] = active_engine.tokenizer.phonemize(word, lang)
+                                return pronunciation_cache[word]
+                            words = word_timings(text, spoken, active_phonemize) if not preview else []
                         else:
-                            samples, rate = engine.create(text, voice=voice, speed=speed, lang=lang)
+                            samples, rate = active_engine.create(text, voice=voice, speed=speed, lang=lang)
                             words = []
                         if stopped():
                             return
                         samples = np.asarray(samples, dtype=np.float32).reshape(-1)
                         if not len(samples) or not np.isfinite(samples).all():
                             raise ValueError('The voice could not read this section. Please try another voice.')
+                        if cached is None and cache and not preview:
+                            cache.put(text, voice, speed, samples, rate, words)
+                        section_start = elapsed
+                        elapsed += len(samples) / rate
+                        skip = min(len(samples), max(0, round((start_seconds - section_start) * rate))) if index == start else 0
+                        if skip == len(samples):
+                            continue
+                        samples = samples[skip:]
+                        words = [(max(0, b - skip/rate), f - skip/rate, l, r) for b, f, l, r in words if f > skip/rate]
                         path = Path(folder) / f'{serial}.npy'
                         np.save(path, samples, allow_pickle=False)
                         size = samples.nbytes
                         with condition:
                             state['bytes'] += size
-                        ready.put((path, rate, index, offset, words, size))
+                            state['seconds'] += len(samples) / rate
+                            condition.notify_all()
+                        ready.put((path, rate, index, offset, words, size, section_start + skip/rate))
                         serial += 1
+                    if not preview:
+                        events.put(('duration', (index, elapsed)))
                     if index + 1 == end or chapter_for(index + 1) != chapter:
                         events.put(('prepared', chapter))
             except Exception as error:
                 ready.put(error)
             finally:
+                with condition:
+                    state['finished'] = True
+                    condition.notify_all()
                 ready.put(None)
 
         worker = threading.Thread(target=produce, daemon=True)
         worker.start()
+        if buffer_seconds:
+            events.put(('status', 'Building a playback reserve for smoother listening…'))
+            with condition:
+                while not stopped() and not state['finished'] and not state['blocked'] and state['seconds'] < buffer_seconds:
+                    condition.wait(0.05)
         total_frames = 0
         base = None
         last_index = None
@@ -94,11 +123,12 @@ def read_book(engine, parts, start, end, chapter_starts, voice, speed, cancel,
                         break
                     if isinstance(item, Exception):
                         raise item
-                    path, sample_rate, index, text_offset, words, size = item
+                    path, sample_rate, index, text_offset, words, size, section_start = item
                     samples = np.load(path, allow_pickle=False)
                     path.unlink()
                     with condition:
                         state['bytes'] -= size
+                        state['seconds'] -= len(samples) / sample_rate
                         state['chapter'] = chapter_for(index)
                         condition.notify_all()
                     if stream is None:
@@ -127,6 +157,8 @@ def read_book(engine, parts, start, end, chapter_starts, voice, speed, cancel,
                             stream.abort()
                             return
                         due = base + total_frames / rate
+                        if not preview and offset % 4096 == 0:
+                            events.put(('at', (due, 'cursor', (index, section_start + offset / rate))))
                         if not preview and index != last_index:
                             events.put(('at', (due, 'position', index)))
                             last_index = index

@@ -35,7 +35,7 @@ def _chapter(title, text):
     return Chapter(' '.join(title.split())[:160] or 'Untitled section', passages(text))
 
 
-CHAPTER_HEADING = re.compile(r'^(?:(?:chapter|part|book)\s+(?:\d+|[ivxlcdm]+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)(?:\b.*)?|prologue|epilogue|introduction|preface|conclusion)$', re.I)
+CHAPTER_HEADING = re.compile(r'^(?:(?:chapter|part|book)\s+(?:\d+|[ivxlcdm]+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred)(?:\b.*)?|prologue|epilogue|introduction|preface|conclusion)$', re.I)
 
 
 def _text_chapters(text, default='Full document'):
@@ -200,7 +200,7 @@ def _epub_chapters(path):
         return result
 
 
-def load_document(path):
+def load_document(path, progress=None, cancel=None, clean_pdf=True):
     path = Path(path)
     suffix = path.suffix.lower()
     if suffix == '.docx':
@@ -220,7 +220,8 @@ def load_document(path):
         reader = PdfReader(path)
         if reader.is_encrypted and not reader.decrypt(''):
             raise ValueError('This PDF is password protected. Open an unlocked copy.')
-        pages = [page.extract_text() or '' for page in reader.pages]
+        from pdf_text import extract_pages
+        pages = extract_pages(path, reader, progress, cancel, clean_pdf)
         boundaries = {}
         # Prefer top-level PDF bookmarks; page-based boundaries cannot split a page.
         for item in reader.outline:
@@ -242,7 +243,7 @@ def load_document(path):
         raise ValueError('Choose a Word (.docx), EPUB, PDF or TXT file.')
     chapters = [chapter for chapter in chapters if chapter.parts]
     if not chapters:
-        raise ValueError('No readable text found. Scanned PDFs need OCR first; DRM-protected books are not supported.')
+        raise ValueError('No readable text found. This may be an empty, unreadable scan or DRM-protected book.')
     return Book(chapters)
 
 

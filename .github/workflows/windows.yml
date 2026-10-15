@@ -8,6 +8,7 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -15,15 +16,21 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install -r requirements.txt
       - run: python -m unittest -v
+      - run: choco install nsis --no-progress -y
       - shell: pwsh
         run: ./build.ps1
+      - name: Test installed app and uninstall on Windows
+        shell: pwsh
+        run: ./test_installer.ps1
       - uses: actions/upload-artifact@v4
         with:
           name: QuietPages-Windows-x64
-          path: dist/QuietPages-Windows-x64.zip
+          path: |
+            dist/QuietPages-Windows-x64.zip
+            dist/QuietPages-Setup-Windows-x64.exe
       - name: Publish Windows preview
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "preview-${{ github.run_number }}-${{ github.run_attempt }}" dist/QuietPages-Windows-x64.zip --target "${{ github.sha }}" --title "Quiet Pages Windows preview ${{ github.run_number }}" --prerelease --notes-file RELEASE_NOTES.md
+          gh release create "preview-${{ github.run_number }}-${{ github.run_attempt }}" dist/QuietPages-Windows-x64.zip dist/QuietPages-Setup-Windows-x64.exe --target "${{ github.sha }}" --title "Quiet Pages Windows preview ${{ github.run_number }}" --prerelease --notes-file RELEASE_NOTES.md

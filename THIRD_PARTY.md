@@ -1,5 +1,7 @@
 # Third-party components
 
+Offline scan recognition uses RapidOCR 1.4.4 (Apache-2.0) with its bundled PaddleOCR PP-OCRv4 models, OpenCV (Apache-2.0), Pillow, PyClipper, Shapely and PyYAML. PDF rendering uses pypdfium2 (Apache-2.0/BSD-3-Clause) and PDFium with its bundled dependency notices. Installer generation uses NSIS (zlib/libpng and component licenses). RapidOCR upstream: https://github.com/RapidAI/RapidOCR/tree/v1.4.4 ; model upstream: https://github.com/PaddlePaddle/PaddleOCR ; PDF rendering: https://github.com/pypdfium2-team/pypdfium2 ; installer: https://nsis.sourceforge.io/License .
+
 Quiet Pages uses Kokoro-82M model/voice data (Apache-2.0), downloaded separately on first use, and kokoro-onnx (MIT).
 
 The packaged application also includes espeak-ng via espeakng-loader. eSpeak NG is GPL-3.0-or-later. For a conservative distribution choice, Quiet Pages application source is offered under GPL-3.0-or-later. Preserve dependency notices and provide corresponding source when distributing compiled packages.
