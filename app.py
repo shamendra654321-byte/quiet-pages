@@ -1,5 +1,7 @@
 """Quiet Pages: an offline Windows book reader."""
 import hashlib
+import heapq
+import time
 import json
 import os
 import queue
@@ -11,7 +13,7 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from reader_core import load_document
-from chapter_audio import read_chapter
+from chapter_audio import read_book
 from app_version import VERSION
 import updates
 
@@ -48,6 +50,9 @@ class Reader:
         self.installed_update = None
         self.update_cancel = threading.Event()
         self.shown_chapter = None
+        self.pending_highlights = []
+        self.highlight_sequence = 0
+        self.prepared_chapters = set()
         DATA.mkdir(parents=True, exist_ok=True)
         try:
             self.saved = json.loads((DATA / 'progress.json').read_text())
@@ -198,11 +203,40 @@ class Reader:
         offset = sum(len(part) + 2 for part in self.chapters[chapter].parts[:local_index])
         self.text.tag_configure('reading', background='#e2ebd9')
         self.text.tag_remove('reading', '1.0', 'end')
+        self.text.tag_remove('word', '1.0', 'end')
         self.text.tag_add('reading', f'1.0+{offset}c', f'1.0+{offset + len(self.parts[self.index])}c')
         self.text.see(f'1.0+{offset}c')
         self.chapter_picker.current(chapter)
         self.position.configure(text=f'{self.index - self.chapter_starts[chapter] + 1} / {len(self.chapters[chapter].parts)} in chapter')
         self.save()
+
+    def show_word(self, value):
+        index, left, right = value
+        if self.cancel.is_set() or not self.parts:
+            return
+        if index != self.index:
+            self.index = index
+            self.display()
+        chapter = self.current_chapter()
+        local_index = index - self.chapter_starts[chapter]
+        offset = sum(len(part) + 2 for part in self.chapters[chapter].parts[:local_index])
+        self.text.tag_configure('word', background='#285c4d', foreground='#ffffff')
+        self.text.tag_remove('word', '1.0', 'end')
+        self.text.tag_add('word', f'1.0+{offset + left}c', f'1.0+{offset + right}c')
+        self.text.tag_raise('word')
+        self.text.see(f'1.0+{offset + left}c')
+
+    def flush_highlights(self, finish=False):
+        now = time.monotonic()
+        while self.pending_highlights and (finish or self.pending_highlights[0][0] <= now):
+            _, _, kind, value = heapq.heappop(self.pending_highlights)
+            if self.cancel.is_set():
+                continue
+            if kind == 'position':
+                self.index = value
+                self.display()
+            else:
+                self.show_word(value)
 
     def current_chapter(self):
         return max(0, bisect_right(self.chapter_starts, self.index) - 1)
@@ -303,6 +337,8 @@ class Reader:
             if chapter + 1 < len(self.chapter_starts):
                 end = self.chapter_starts[chapter + 1]
         self.cancel.clear()
+        self.pending_highlights.clear()
+        self.prepared_chapters.clear()
         self.paused.clear()
         self.pause.configure(text='Pause')
         self.set_busy(True)
@@ -312,13 +348,8 @@ class Reader:
                 engine = self.get_engine()
                 import sounddevice as sd
                 first = 0 if preview else start
-                stops = [point for point in chapter_starts if first < point < end] if not preview else []
-                for stop in stops + [end]:
-                    if self.cancel.is_set():
-                        break
-                    read_chapter(engine, parts, first, stop, voice, speed, self.cancel,
-                                 self.paused, self.events, sd.OutputStream, preview)
-                    first = stop
+                read_book(engine, parts, first, end, chapter_starts if not preview else [0],
+                          voice, speed, self.cancel, self.paused, self.events, sd.OutputStream, preview)
             except InterruptedError:
                 pass
             except Exception as exc:
@@ -339,6 +370,7 @@ class Reader:
 
     def stop(self):
         self.cancel.set()
+        self.pending_highlights.clear()
         self.paused.clear()
         self.pause.configure(text='Pause')
         if self.busy:
@@ -349,10 +381,20 @@ class Reader:
             while True:
                 kind, value = self.events.get_nowait()
                 if kind == 'status':
+                    if str(value).startswith('Reading aloud') and self.current_chapter() + 1 in self.prepared_chapters:
+                        value = 'Reading aloud · Next chapter ready'
                     self.status.configure(text=value)
                 elif kind == 'position':
                     self.index = value
                     self.display()
+                elif kind == 'at':
+                    due, action, data = value
+                    self.highlight_sequence += 1
+                    heapq.heappush(self.pending_highlights, (due, self.highlight_sequence, action, data))
+                elif kind == 'prepared':
+                    self.prepared_chapters.add(value)
+                    if value == self.current_chapter() + 1 and str(self.status.cget('text')).startswith('Reading aloud'):
+                        self.status.configure(text='Reading aloud · Next chapter ready')
                 elif kind == 'book':
                     self.shown_chapter = None
                     name, book, self.book_id = value
@@ -364,8 +406,11 @@ class Reader:
                     self.title.configure(text=name[:28])
                     self.display()
                 elif kind == 'error':
+                    self.pending_highlights.clear()
                     messagebox.showerror('Quiet Pages', value)
                 elif kind == 'done':
+                    self.flush_highlights(finish=True)
+                    self.pending_highlights.clear()
                     self.set_busy(False)
                     self.pause.configure(text='Pause')
                     self.status.configure(text='Ready · Your place is saved')
@@ -392,7 +437,8 @@ class Reader:
                         messagebox.showerror('Quiet Pages updates', f'Could not finish the update. Your current app is unchanged.\n\n{error}')
         except queue.Empty:
             pass
-        self.root.after(100, self.poll)
+        self.flush_highlights()
+        self.root.after(20, self.poll)
 
     def close(self):
         self.cancel.set()

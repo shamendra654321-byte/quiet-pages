@@ -14,8 +14,8 @@ The first Play or Preview downloads roughly 350 MB of model and voice data from 
 
 - Open Word (.docx), DRM-free EPUB, text-based PDF and TXT books.
 - Choose a chapter, jump between chapters, and optionally stop after a chapter.
-- Prepare a whole chapter before playback, avoiding speech-generation gaps between passages.
-- Follow along with the full chapter and a highlighted current passage.
+- Start after a short opening section, with the current and next chapter prepared in the background.
+- Follow the full chapter with model-timed word highlighting and automatic scrolling.
 - Get update notices inside the app, read release notes, download and restart without visiting a website.
 - Nine American and British English male/female voices.
 - Preview a narrator, adjust speed from 0.5 to 2.0, pause, resume and stop.
@@ -26,7 +26,13 @@ Start with Heart or Bella. Emma offers a British female alternative; Michael and
 
 ## Current limitations
 
-This is an early prototype. Scanned PDFs need OCR first. DRM-protected books are unsupported. PDF columns, headers and unusual layouts may read imperfectly. English narration only in this version. Bookmarks resume at the start of a passage, not an exact audio timestamp. A chapter is prepared on disk before it starts; large chapters can take time and temporary disk space. There is a preparation wait between chapters, and natural pauses or voice-model prosody remain. The portable build is unsigned. Windows ARM and clean-machine compatibility still need separate validation.
+This is an early prototype. Scanned PDFs need OCR first. DRM-protected books are unsupported. PDF columns, headers and unusual layouts may read imperfectly. English narration only in this version. Bookmarks resume at the start of a passage, not an exact audio timestamp. The first playback loads the voice engine, then prepares a short opening section. Later sections and the next chapter are prepared while playback continues; slower CPUs may still need to buffer. Word alignment can be imperfect on unusual text. Natural pauses and voice-model prosody remain. The portable build is unsigned. Windows ARM and clean-machine compatibility still need separate validation.
+
+## Faster playback and word highlighting
+
+Preview 5 uses a background worker to prepare audio ahead of playback, keeping one output stream open across chapters. It starts with a short sentence rather than waiting for the whole chapter. Preparation runs at most one chapter ahead, with a 256 MB pending-audio budget and temporary files removed as they are consumed. Pause allows preparation to continue; Stop cancels the queue and waits for the in-progress inference call before the voice engine is reused. Stop after this chapter never prepares or plays the following chapter.
+
+Kokoro supplies phoneme timestamps. Quiet Pages aligns those sounds to the original words, including expanded numbers, and schedules highlights using the audio timeline and device latency. It does not synthesize words separately or invent evenly spaced word timings. If timing is missing or cannot be matched reliably, passage highlighting remains available. Temporary audio is not a persistent cache, so reopening a chapter generates it again.
 
 ## Updates inside the app
 

@@ -1,5 +1,14 @@
 # Prototype validation — 15 October 2026
 
+## Preview 5: early playback, preparation ahead and word timing
+
+- 34 automated tests passed, including playback starting before later synthesis finishes, preparation of the following chapter during current playback, one stream across chapters, sample preservation, pause/resume, stop/cancellation, worker failure propagation, source word offsets, number expansion, timing fallback, and delayed/cancelled UI highlights.
+- Real Kokoro/Heart speech in a paced simulated stream produced 20.6 seconds across two chapters. First audio was ready in 0.64 seconds after engine loading, all 61 visible words received timestamps, and no buffering notices occurred. This is a single-machine measurement, not a performance guarantee; it does not include engine loading or model download time.
+- The packaged self-test now checks two-chapter streaming and model-based word timestamps in addition to four narrator samples.
+- Speaker playback, Bluetooth latency, subjective highlight accuracy and clean-machine compatibility still need hands-on testing. Weak CPUs may buffer. Unusual text can align imperfectly; missing/unreliable timing falls back to passage highlighting.
+
+The following sections record earlier previews; their full-chapter preparation design was replaced in preview 5.
+
 ## Continuous chapters and in-app updates
 
 - Automated checks cover preparing all chapter audio before the first stream opens, exact sample preservation across passage boundaries, cancellation during preparation/playback, chapter-only and continuous modes, saved positions, full-chapter highlighting and minimum window sizing.

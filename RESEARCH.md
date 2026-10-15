@@ -19,3 +19,11 @@ This compact importer is not a full Word layout engine. Body paragraphs and tabl
 [sounddevice stream documentation](https://python-sounddevice.readthedocs.io/en/latest/api/streams.html) supports block-wise writes to one OutputStream. Quiet Pages now prepares a whole chapter in a temporary disk file before opening one stream, removing synthesis waits and stream restarts within that chapter. Natural voice-model pauses remain. Whole-chapter preparation trades startup latency and temporary disk space for predictable playback; slow computers may wait longer between chapters.
 
 [GitHub release API documentation](https://docs.github.com/en/rest/releases/releases) exposes release assets and their SHA-256 digests. The updater reads the releases list because the latest-release endpoint excludes previews. It verifies size and digest, rejects unsafe ZIP paths, installs alongside the current app, and preserves a working original launch path.
+
+## Preview 5: a simpler timestamp and preparation pipeline
+
+The installed kokoro-onnx 0.6.1 and current model-files-v1.1 model already provide create_timed() phoneme timestamps. Verified against the installed library, the model outputs, and the upstream [implementation](https://github.com/thewh1teagle/kokoro-onnx/blob/main/src/kokoro_onnx/__init__.py) and [subtitle example](https://github.com/thewh1teagle/kokoro-onnx/blob/main/examples/with_video_subtitles.py). No extra speech-recognition model is required.
+
+Quiet Pages implements its own word-to-phoneme alignment to preserve original character offsets and handle number expansions, rather than pairing phoneme groups and printed words by count. Model timing is scheduled against the audio timeline with output latency. Low-confidence alignment falls back to passage highlighting.
+
+A single synthesis worker prepares small sentence-aware sections on disk while one stream plays across chapter boundaries. Preparation is limited to the current plus following chapter and a 256 MB pending-audio budget. This supersedes preview 4's whole-chapter startup wait. It cannot guarantee no buffering on a CPU that synthesizes more slowly than real time.

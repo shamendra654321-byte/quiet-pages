@@ -1,19 +1,13 @@
-## A smoother story, chapter by chapter
+## Follow every word, start listening sooner
 
-Quiet Pages now prepares the whole chapter before playing it through one continuous audio stream. This removes the repeated stops to generate each paragraph. A preparation counter shows progress before the chapter begins. Natural speaking pauses remain, and long chapters can take time to prepare.
+Quiet Pages now highlights each spoken word using timestamps from the Kokoro voice model. The chapter stays visible and scrolls with the reading. Numbers and abbreviations are matched back to the original text.
 
-Follow the full chapter on screen, with the current passage highlighted. Word .docx, EPUB, text-based PDF and TXT support, chapter navigation, voice choice and saved reading positions are included.
+Press Play and listening begins after a short opening section is ready, instead of waiting for the whole chapter. While you listen, Quiet Pages prepares the rest of the current chapter and the next chapter in the background. A single audio stream continues across chapter boundaries, and the app shows Next chapter ready when preparation is complete.
 
-## Updates without leaving Quiet Pages
+The voice model still needs to load on first playback. Slower computers may occasionally show Buffering more speech if generation cannot keep up. Word alignment can be imperfect on unusual text; when usable timing is unavailable, the app keeps passage highlighting instead of guessing word timing.
 
-- The Windows app checks for new previews when it opens and shows Update available.
-- Read what's new, download inside the app, then choose Restart to update.
-- Your downloaded voices and saved reading place are kept.
-- Use Help to check manually or turn automatic checks off.
-- Downloads are verified against GitHub's SHA-256 digest. The previous app files remain available.
+A paced two-chapter test with real Heart speech began audio in 0.64 seconds after engine load, matched all 61 words and needed no buffering. This is one-machine evidence, not a speed guarantee. Physical speaker and clean-machine checks remain outstanding.
 
-**One-time step for existing users:** preview 3 and earlier do not have an updater. Download and extract this version once. Future updates can then be installed inside Quiet Pages.
+Already using preview 4? Open Help → Check for updates, download this release and choose Restart to update. Your saved place and downloaded voices are kept. Users on older previews need to download this Windows ZIP once.
 
-This remains an unsigned Windows x64 preview with English voices. Scanned PDFs still require OCR; older .doc documents must be saved as .docx. There is a preparation wait before each chapter. Physical speaker playback and clean-machine installation still need broader testing.
-
-Download page and voice samples: https://quiet-pages.abuzzlion9.chatgpt.site
+Download page: https://quiet-pages.abuzzlion9.chatgpt.site

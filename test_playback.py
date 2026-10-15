@@ -102,6 +102,21 @@ class PlaybackTests(unittest.TestCase):
             info.assert_called_once()
             activate.assert_not_called()
 
+    def test_word_highlight_uses_exact_passage_offset(self):
+        self.reader.show_word((1, 0, 4))
+        self.assertEqual(self.reader.index, 1)
+        ranges = self.reader.text.tag_ranges('word')
+        self.assertEqual(self.reader.text.get(*ranges), 'More')
+
+    def test_future_word_waits_for_audio_clock_and_stop_discards_it(self):
+        self.reader.events.put(('at', (time.monotonic() + 60, 'word', (1, 0, 4))))
+        self.reader.poll()
+        self.assertEqual(self.reader.index, 0)
+        self.assertFalse(self.reader.text.tag_ranges('word'))
+        self.reader.stop()
+        self.reader.flush_highlights(finish=True)
+        self.assertEqual(self.reader.index, 0)
+
 
 if __name__ == '__main__':
     unittest.main()
