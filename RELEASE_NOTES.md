@@ -1,18 +1,19 @@
-## Word documents, meet Quiet Pages
+## A smoother story, chapter by chapter
 
-Open Word .docx documents directly, without installing Microsoft Word. Ordinary paragraphs, hyperlinks and table text are read in order. Save older .doc files as .docx first.
+Quiet Pages now prepares the whole chapter before playing it through one continuous audio stream. This removes the repeated stops to generate each paragraph. A preparation counter shows progress before the chapter begins. Natural speaking pauses remain, and long chapters can take time to prepare.
 
-## Listen chapter by chapter
+Follow the full chapter on screen, with the current passage highlighted. Word .docx, EPUB, text-based PDF and TXT support, chapter navigation, voice choice and saved reading positions are included.
 
-- Choose a chapter from the dropdown, or use the previous/next chapter buttons.
-- Read continuously or select Stop after this chapter. Press Play again for the next chapter.
-- Chapter detection uses Word headings, EPUB contents links, PDF bookmarks and recognizable text headings.
-- See the passage position within your current chapter.
+## Updates without leaving Quiet Pages
 
-Documents without headings open as one section. PDF chapter boundaries are page-based; scanned PDFs still need OCR. Changed passage boundaries may reset the saved place for a book opened in an older version.
+- The Windows app checks for new previews when it opens and shows Update available.
+- Read what's new, download inside the app, then choose Restart to update.
+- Your downloaded voices and saved reading place are kept.
+- Use Help to check manually or turn automatic checks off.
+- Downloads are verified against GitHub's SHA-256 digest. The previous app files remain available.
 
-Thirteen automated import and playback-control checks passed. This remains an early, unsigned Windows 64-bit preview.
+**One-time step for existing users:** preview 3 and earlier do not have an updater. Download and extract this version once. Future updates can then be installed inside Quiet Pages.
+
+This remains an unsigned Windows x64 preview with English voices. Scanned PDFs still require OCR; older .doc documents must be saved as .docx. There is a preparation wait before each chapter. Physical speaker playback and clean-machine installation still need broader testing.
 
 Download page and voice samples: https://quiet-pages.abuzzlion9.chatgpt.site
-
-Follow announcements through GitHub Watch → Custom → Releases, or the repository's RSS/Atom feed.

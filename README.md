@@ -14,6 +14,9 @@ The first Play or Preview downloads roughly 350 MB of model and voice data from 
 
 - Open Word (.docx), DRM-free EPUB, text-based PDF and TXT books.
 - Choose a chapter, jump between chapters, and optionally stop after a chapter.
+- Prepare a whole chapter before playback, avoiding speech-generation gaps between passages.
+- Follow along with the full chapter and a highlighted current passage.
+- Get update notices inside the app, read release notes, download and restart without visiting a website.
 - Nine American and British English male/female voices.
 - Preview a narrator, adjust speed from 0.5 to 2.0, pause, resume and stop.
 - Move between passages and resume at the last saved passage when reopening a book.
@@ -23,7 +26,17 @@ Start with Heart or Bella. Emma offers a British female alternative; Michael and
 
 ## Current limitations
 
-This is an early prototype. Scanned PDFs need OCR first. DRM-protected books are unsupported. PDF columns, headers and unusual layouts may read imperfectly. English narration only in this version. Bookmarks resume at the start of a passage, not an exact audio timestamp. Synthesis happens one passage at a time, so slower computers may pause between passages. The portable build is unsigned. Windows ARM and clean-machine compatibility still need separate validation.
+This is an early prototype. Scanned PDFs need OCR first. DRM-protected books are unsupported. PDF columns, headers and unusual layouts may read imperfectly. English narration only in this version. Bookmarks resume at the start of a passage, not an exact audio timestamp. A chapter is prepared on disk before it starts; large chapters can take time and temporary disk space. There is a preparation wait between chapters, and natural pauses or voice-model prosody remain. The portable build is unsigned. Windows ARM and clean-machine compatibility still need separate validation.
+
+## Updates inside the app
+
+Starting with preview 4, Quiet Pages checks the official public GitHub release list when it opens. An Update available button appears when a newer preview is ready. Choose it to read the announcement and download. Then choose Restart to update after stopping playback. Your voices and saved positions stay in the same data folder. This only contacts GitHub for release information and downloads; it never sends your book text.
+
+Help → Check for updates checks manually. Help also lets you turn startup checks off. Being offline does not stop reading. GitHub rate limits can temporarily prevent checks.
+
+Updates are checked against the SHA-256 digest supplied by GitHub and unpacked under `%LOCALAPPDATA%\QuietPages\updates`. The original portable folder stays intact. Its executable redirects to a newer installed copy, so existing shortcuts keep working. Keep that original folder. For recovery, run the original executable with `--skip-update` to bypass the newer copy. Old update folders are retained for now and can use disk space.
+
+Preview 3 and earlier cannot update themselves: download this version once from the download page. Subsequent releases can be installed inside the app. Source-code runs do not self-install packaged updates.
 
 ## Word documents and chapters
 

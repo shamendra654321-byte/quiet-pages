@@ -1,5 +1,12 @@
 # Prototype validation — 15 October 2026
 
+## Continuous chapters and in-app updates
+
+- Automated checks cover preparing all chapter audio before the first stream opens, exact sample preservation across passage boundaries, cancellation during preparation/playback, chapter-only and continuous modes, saved positions, full-chapter highlighting and minimum window sizing.
+- Updater checks cover numeric preview ordering, official download URL selection, SHA-256 and size validation, truncated and cancelled downloads, ZIP traversal and Windows path hazards, preserved original files, startup redirection, and rollback of the launch pointer if starting the update fails.
+- UI checks verify that a background update notice does not interrupt reading and restarting waits until reading stops. Update process launches are mocked in automated tests; this is not a real upgrade test on a clean Windows machine.
+- Synthesis is still bounded internally; a temporary audio file holds the whole chapter before playback. This removes generation stalls within a chapter but does not guarantee a particular voice's pronunciation or eliminate natural pauses. Each chapter has a preparation wait.
+
 ## Word and chapter update
 
 - 13 automated checks passed: DOCX heading inheritance, outline levels, tables, hyperlinks and deleted text; EPUB spine order and fragment chapters; PDF bookmark chapters; text headings; DOC conversion guidance; continuous and chapter-limited playback; saved position; minimum window sizing.

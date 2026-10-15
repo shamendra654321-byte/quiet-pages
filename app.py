@@ -4,7 +4,6 @@ import json
 import os
 import queue
 import threading
-import time
 import sys
 from bisect import bisect_right
 import urllib.request
@@ -12,6 +11,9 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from reader_core import load_document
+from chapter_audio import read_chapter
+from app_version import VERSION
+import updates
 
 DATA = Path(os.environ.get('QUIET_PAGES_DATA', Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'QuietPages'))
 VOICES = {
@@ -41,11 +43,30 @@ class Reader:
         self.chapter_starts = []
         self.index = 0
         self.book_id = None
+        self.update_busy = False
+        self.available_update = None
+        self.installed_update = None
+        self.update_cancel = threading.Event()
+        self.shown_chapter = None
         DATA.mkdir(parents=True, exist_ok=True)
         try:
             self.saved = json.loads((DATA / 'progress.json').read_text())
         except (OSError, ValueError):
             self.saved = {}
+        try:
+            self.preferences = json.loads((DATA / 'preferences.json').read_text())
+        except (OSError, ValueError):
+            self.preferences = {}
+        self.auto_updates = tk.BooleanVar(value=self.preferences.get('auto_updates', True))
+        menu = tk.Menu(root)
+        help_menu = tk.Menu(menu, tearoff=False)
+        help_menu.add_command(label='Check for updates', command=self.check_updates)
+        help_menu.add_checkbutton(label='Check for updates when Quiet Pages opens', variable=self.auto_updates,
+                                  command=self.save_preferences)
+        help_menu.add_command(label=f'About Quiet Pages ({VERSION})', command=lambda: messagebox.showinfo(
+            'Quiet Pages', f'Quiet Pages {VERSION}\nFree, private book listening.\nUpdates come from the official Quiet Pages GitHub project.'))
+        menu.add_cascade(label='Help', menu=help_menu)
+        root.configure(menu=menu)
         root.title('Quiet Pages — Your books, read aloud')
         root.geometry('920x700')
         root.minsize(720, 550)
@@ -65,6 +86,8 @@ class Reader:
         self.open_button.pack(side='left')
         self.title = ttk.Label(row, text='Word, EPUB, PDF or TXT')
         self.title.pack(side='left', padx=16)
+        self.update_button = ttk.Button(row, text='Check updates', command=self.update_action)
+        self.update_button.pack(side='right')
         settings = ttk.Frame(frame)
         settings.pack(fill='x', pady=18)
         self.voice = ttk.Combobox(settings, values=list(VOICES), state='readonly', width=32)
@@ -107,6 +130,58 @@ class Reader:
         self.text.pack(fill='both', expand=True)
         root.protocol('WM_DELETE_WINDOW', self.close)
         root.after(100, self.poll)
+        if getattr(sys, 'frozen', False) and self.auto_updates.get():
+            root.after(2000, lambda: self.check_updates(manual=False))
+
+    def save_preferences(self):
+        self.preferences['auto_updates'] = self.auto_updates.get()
+        (DATA / 'preferences.json').write_text(json.dumps(self.preferences), encoding='utf-8')
+
+    def check_updates(self, manual=True):
+        if self.update_busy:
+            return
+        self.update_busy = True
+        self.update_button.configure(text='Checking…', state='disabled')
+        def work():
+            try:
+                self.events.put(('update_found', (updates.check_update(VERSION), manual)))
+            except Exception as exc:
+                self.events.put(('update_error', (str(exc), manual)))
+        threading.Thread(target=work, daemon=True).start()
+
+    def update_action(self):
+        if self.installed_update:
+            if self.busy:
+                messagebox.showinfo('Update ready', 'Stop reading first, then choose Restart to update. Your place is saved.')
+                return
+            if messagebox.askyesno('Update ready', 'Restart Quiet Pages with the new version now? Your books, voices and saved place will be kept.'):
+                try:
+                    updates.activate_update(DATA, self.installed_update)
+                    self.close()
+                except Exception as exc:
+                    messagebox.showerror('Could not restart', str(exc))
+        elif self.available_update:
+            if not getattr(sys, 'frozen', False):
+                messagebox.showinfo('Development copy', 'In-app installation is available in the downloaded Windows app. This source copy is updated through GitHub.')
+                return
+            release = self.available_update
+            if not messagebox.askyesno('New Quiet Pages update', f'{release["name"]}\n\n{release["notes"][:2500]}\n\nDownload and prepare this update? Reading can continue while it downloads.'):
+                return
+            self.update_busy = True
+            self.update_cancel.clear()
+            self.update_button.configure(text='Downloading…', state='disabled')
+            def work():
+                try:
+                    result = updates.install_update(release, DATA, self.update_cancel,
+                        lambda text: self.events.put(('update_progress', text)))
+                    self.events.put(('update_ready', result))
+                except InterruptedError:
+                    pass
+                except Exception as exc:
+                    self.events.put(('update_error', (str(exc), True)))
+            threading.Thread(target=work, daemon=True).start()
+        else:
+            self.check_updates()
 
     def show_text(self, text):
         self.text.configure(state='normal')
@@ -115,8 +190,16 @@ class Reader:
         self.text.configure(state='disabled')
 
     def display(self):
-        self.show_text(self.parts[self.index])
         chapter = self.current_chapter()
+        if self.shown_chapter != chapter:
+            self.show_text('\n\n'.join(self.chapters[chapter].parts))
+            self.shown_chapter = chapter
+        local_index = self.index - self.chapter_starts[chapter]
+        offset = sum(len(part) + 2 for part in self.chapters[chapter].parts[:local_index])
+        self.text.tag_configure('reading', background='#e2ebd9')
+        self.text.tag_remove('reading', '1.0', 'end')
+        self.text.tag_add('reading', f'1.0+{offset}c', f'1.0+{offset + len(self.parts[self.index])}c')
+        self.text.see(f'1.0+{offset}c')
         self.chapter_picker.current(chapter)
         self.position.configure(text=f'{self.index - self.chapter_starts[chapter] + 1} / {len(self.chapters[chapter].parts)} in chapter')
         self.save()
@@ -214,6 +297,7 @@ class Reader:
         start = self.index
         parts = ['Settle into your favourite chair and let the story begin. The evening light slipped across the quiet room, and a new adventure waited on the next page.'] if preview else list(self.parts)
         end = len(parts)
+        chapter_starts = list(self.chapter_starts)
         if not preview and self.chapter_only.get():
             chapter = self.current_chapter()
             if chapter + 1 < len(self.chapter_starts):
@@ -227,26 +311,14 @@ class Reader:
             try:
                 engine = self.get_engine()
                 import sounddevice as sd
-                for i in range(0 if preview else start, end):
+                first = 0 if preview else start
+                stops = [point for point in chapter_starts if first < point < end] if not preview else []
+                for stop in stops + [end]:
                     if self.cancel.is_set():
                         break
-                    self.events.put(('status', 'Preparing next passage…'))
-                    samples, rate = engine.create(parts[i], voice=voice, speed=speed, lang='en-gb' if voice.startswith('b') else 'en-us')
-                    if self.cancel.is_set():
-                        break
-                    if not preview:
-                        self.events.put(('position', i))
-                    self.events.put(('status', 'Reading aloud'))
-                    with sd.OutputStream(samplerate=rate, channels=1, dtype='float32') as stream:
-                        for offset in range(0, len(samples), 1024):
-                            while self.paused.is_set() and not self.cancel.is_set():
-                                time.sleep(0.05)
-                            if self.cancel.is_set():
-                                stream.abort()
-                                break
-                            stream.write(samples[offset:offset + 1024].reshape(-1, 1))
-                    if not preview and not self.cancel.is_set() and i + 1 < len(parts):
-                        self.events.put(('position', i + 1))
+                    read_chapter(engine, parts, first, stop, voice, speed, self.cancel,
+                                 self.paused, self.events, sd.OutputStream, preview)
+                    first = stop
             except InterruptedError:
                 pass
             except Exception as exc:
@@ -282,13 +354,14 @@ class Reader:
                     self.index = value
                     self.display()
                 elif kind == 'book':
+                    self.shown_chapter = None
                     name, book, self.book_id = value
                     self.parts = book.parts
                     self.chapters = book.chapters
                     self.chapter_starts = book.starts
                     self.chapter_picker.configure(values=[f'{i + 1}. {chapter.title}' for i, chapter in enumerate(self.chapters)])
                     self.index = max(0, min(int(self.saved.get(self.book_id, 0)), len(self.parts) - 1))
-                    self.title.configure(text=name[:55])
+                    self.title.configure(text=name[:28])
                     self.display()
                 elif kind == 'error':
                     messagebox.showerror('Quiet Pages', value)
@@ -296,12 +369,34 @@ class Reader:
                     self.set_busy(False)
                     self.pause.configure(text='Pause')
                     self.status.configure(text='Ready · Your place is saved')
+                elif kind == 'update_found':
+                    self.available_update, manual = value
+                    self.update_busy = False
+                    self.update_button.configure(text='Update available' if self.available_update else 'Check updates', state='normal')
+                    if manual:
+                        if self.available_update:
+                            self.update_action()
+                        else:
+                            messagebox.showinfo('Quiet Pages updates', f'You are up to date ({VERSION}).')
+                elif kind == 'update_progress':
+                    self.update_button.configure(text=value.replace('Downloading update:', 'Update:').replace('Checking and unpacking update…', 'Unpacking…'))
+                elif kind == 'update_ready':
+                    self.installed_update = value
+                    self.update_busy = False
+                    self.update_button.configure(text='Restart to update', state='normal')
+                elif kind == 'update_error':
+                    error, manual = value
+                    self.update_busy = False
+                    self.update_button.configure(text='Retry update' if self.available_update else 'Check updates', state='normal')
+                    if manual:
+                        messagebox.showerror('Quiet Pages updates', f'Could not finish the update. Your current app is unchanged.\n\n{error}')
         except queue.Empty:
             pass
         self.root.after(100, self.poll)
 
     def close(self):
         self.cancel.set()
+        self.update_cancel.set()
         self.root.destroy()
 
 
@@ -316,6 +411,9 @@ if __name__ == '__main__':
             (DATA / 'smoke-error.txt').write_text(traceback.format_exc())
             raise
     else:
+        if (getattr(sys, 'frozen', False) and '--skip-update' not in sys.argv
+                and '--updated-start' not in sys.argv and updates.redirect_to_installed(DATA, VERSION)):
+            sys.exit(0)
         root = tk.Tk()
         Reader(root)
         root.mainloop()

@@ -77,6 +77,31 @@ class PlaybackTests(unittest.TestCase):
             self.assertTrue(widget.winfo_ismapped())
             self.assertLessEqual(widget.winfo_rooty() + widget.winfo_height(), self.root.winfo_rooty() + self.root.winfo_height())
 
+    def test_chapter_text_stays_visible_with_reading_highlight(self):
+        self.assertIn('First.\n\nMore.', self.reader.text.get('1.0', 'end'))
+        self.reader.move(1)
+        self.assertIn('First.\n\nMore.', self.reader.text.get('1.0', 'end'))
+        ranges = self.reader.text.tag_ranges('reading')
+        self.assertEqual(self.reader.text.get(*ranges), 'More.')
+
+    def test_background_update_notice_does_not_interrupt_reading(self):
+        self.reader.set_busy(True)
+        self.reader.events.put(('update_found', ({'name': 'New release'}, False)))
+        with patch('app.messagebox.showinfo') as info, patch('app.messagebox.askyesno') as prompt:
+            self.reader.poll()
+            info.assert_not_called()
+            prompt.assert_not_called()
+        self.assertTrue(self.reader.busy)
+        self.assertEqual(self.reader.update_button.cget('text'), 'Update available')
+
+    def test_restart_waits_until_reading_stops(self):
+        self.reader.installed_update = {'tag': 'preview-5-1'}
+        self.reader.set_busy(True)
+        with patch('app.messagebox.showinfo') as info, patch('updates.activate_update') as activate:
+            self.reader.update_action()
+            info.assert_called_once()
+            activate.assert_not_called()
+
 
 if __name__ == '__main__':
     unittest.main()
