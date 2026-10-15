@@ -1,0 +1,4 @@
+kokoro-onnx==0.6.1
+sounddevice==0.5.6
+pypdf==6.20.1
+beautifulsoup4==4.15.0
