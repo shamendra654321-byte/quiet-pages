@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://shamendra654321-byte.github.io/quiet-pages/sitemap.xml
