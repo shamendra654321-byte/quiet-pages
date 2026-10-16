@@ -100,7 +100,7 @@ class PlaybackTests(unittest.TestCase):
         self.assertEqual(self.reader.index, 0)
         self.reader.chapter_picker.current(1)
         self.reader.select_chapter()
-        self.assertEqual(self.reader.saved['test-book'], 2)
+        self.assertEqual(self.reader.saved['test-book']['index'], 2)
 
     def test_controls_fit_small_window(self):
         self.root.geometry('720x550')

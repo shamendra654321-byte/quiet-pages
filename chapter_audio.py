@@ -15,7 +15,7 @@ MAX_BUFFER_BYTES = 256 * 1024 * 1024
 
 def read_book(engine, parts, start, end, chapter_starts, voice, speed, cancel,
               paused, events, stream_factory, preview=False, cache=None, start_seconds=0, buffer_seconds=0,
-              live_speed=None):
+              live_speed=None, start_char=None):
     chapters = chapter_starts or [0]
     chapter_for = lambda index: max(0, bisect_right(chapters, index) - 1)
     condition = threading.Condition()
@@ -68,6 +68,16 @@ def read_book(engine, parts, start, end, chapter_starts, voice, speed, cancel,
                         section_start = elapsed
                         elapsed += len(samples) / rate
                         skip = min(len(samples), max(0, round((start_seconds - section_start) * rate))) if index == start else 0
+                        if index == start and start_char is not None:
+                            if start_char >= offset + len(text):
+                                skip = len(samples)
+                            elif start_char >= offset:
+                                # A different narrator has different audio timing. Resume
+                                # at the same word, or the section start if timing is absent.
+                                matching = [w for w in words if w[3] > start_char - offset]
+                                skip = max(0, min(len(samples), round(matching[0][0] * rate))) if matching else 0
+                            else:
+                                skip = 0
                         if skip == len(samples):
                             continue
                         samples = samples[skip:]
@@ -163,11 +173,12 @@ def read_book(engine, parts, start, end, chapter_starts, voice, speed, cancel,
                             stream.abort()
                             return
                         due = base + total_frames / rate
-                        if not preview and block_number % 8 == 0:
-                            events.put(('at', (due, 'cursor', (index, section_start + offset / rate))))
                         if not preview and index != last_index:
                             events.put(('at', (due, 'position', index)))
                             last_index = index
+                        if not preview:
+                            events.put(('at', (due, 'cursor', (index, section_start + offset / rate,
+                                        section_start + source_end / rate, len(block) / rate))))
                         while word_index < len(words) and words[word_index][0] * rate < source_end:
                             begin, finish, left, right = words[word_index]
                             if not preview:
@@ -180,6 +191,9 @@ def read_book(engine, parts, start, end, chapter_starts, voice, speed, cancel,
                         block_number += 1
                         if underflow:
                             base = time.monotonic() + latency - total_frames / rate
+                    if not preview:
+                        events.put(('at', (base + total_frames / rate, 'cursor',
+                                          (index, section_start + len(samples) / rate))))
             if not preview and not cancel.is_set() and end < len(parts):
                 events.put(('at', ((base + total_frames / rate) if rate else time.monotonic(), 'position', end)))
         finally:

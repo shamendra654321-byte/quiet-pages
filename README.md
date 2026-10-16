@@ -24,14 +24,14 @@ The first Play or Preview downloads roughly 350 MB of model and voice data from 
 - Get update notices inside the app, read release notes, download and restart without visiting a website.
 - Nine American and British English male/female voices.
 - Preview a narrator, adjust speed live from 0.5 to 2.0 without restarting, pause, resume and stop.
-- Move between passages and resume at the last saved passage when reopening a book.
+- Reopen a book at its saved audio position, with the saved voice and speed. Press Ctrl+B to name a bookmark; use Bookmarks to jump, rename or delete it.
 - CPU inference; no paid service or GPU required.
 
 Start with Heart or Bella. Emma offers a British female alternative; Michael and George provide male options. Pleasantness is subjective: use Preview before starting a long book.
 
 ## Current limitations
 
-This is an early prototype. Scanned pages are recognised locally. OCR can misread handwriting, poor scans and columns; English scans are the initial tested use case. Disable PDF margin cleanup in Help before reopening a file if necessary. DRM-protected books are unsupported. PDF columns, headers and unusual layouts may read imperfectly. English narration only in this version. Bookmarks resume at the start of a passage, not an exact audio timestamp. The first playback loads the voice engine, then prepares a short opening section. Later sections and the next chapter are prepared while playback continues; slower CPUs may still need to buffer. Word alignment can be imperfect on unusual text. Natural pauses and voice-model prosody remain. The portable build is unsigned. Windows ARM and clean-machine compatibility still need separate validation.
+This is an early prototype. Scanned pages are recognised locally. OCR can misread handwriting, poor scans and columns; English scans are the initial tested use case. Disable PDF margin cleanup in Help before reopening a file if necessary. DRM-protected books are unsupported. PDF columns, headers and unusual layouts may read imperfectly. English narration only in this version. Resume and bookmarks retain the audio timestamp for the same voice. Changing voice resumes from the saved word when alignment is available (otherwise the containing section). Normal stop/close saves immediately; recovery after a crash can lose about one second. Device latency can affect the audible boundary. Older saved places still begin at their saved passage. The first playback loads the voice engine, then prepares a short opening section. Later sections and the next chapter are prepared while playback continues; slower CPUs may still need to buffer. Word alignment can be imperfect on unusual text. Natural pauses and voice-model prosody remain. The portable build is unsigned. Windows ARM and clean-machine compatibility still need separate validation.
 
 ## Faster playback and word highlighting
 

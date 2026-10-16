@@ -1,9 +1,9 @@
-# Quiet Pages is now Talevoxa
+# Remember your place, down to the audio position
 
-Our free offline book reader has a new name: Talevoxa. The app window, menus, installer and new Start menu shortcuts use the new name.
+Talevoxa now saves your position inside a passage when you stop or close the app. Reopen the same book and press Play to continue with your saved voice and speed. Progress also saves every second while listening.
 
-Existing users can update in the app. Your books, saved reading places, downloaded voices and cached audio stay in the same location. Existing shortcuts and update links continue working. Download filenames and the GitHub repository keep their original names for compatibility. If you update inside the app, your existing Start shortcut may still say Quiet Pages; running the new installer adds a Talevoxa shortcut.
+Press Ctrl+B to add a named bookmark. Open Bookmarks to jump to a saved moment, rename it or delete it. Each book keeps its own bookmarks alongside its current reading position.
 
-The download website now uses Talevoxa branding and a clearer search description. The competitor research roadmap records future ideas; it does not add new reading features in this release.
+Changing speed preserves the position. Changing narrator resumes from the saved word when word timing is available, or the containing section otherwise. Audio-device latency can slightly affect the audible boundary; a crash can lose about one second of progress. Old saved passage positions remain compatible.
 
-This preview remains unsigned, so Windows may still show Unknown publisher.
+Existing users can install this release using Check updates inside the app. Download filenames and the storage folder keep their original Quiet Pages names for compatibility. This preview remains unsigned.

@@ -7,17 +7,19 @@ import os
 import queue
 import threading
 import sys
+import uuid
 from bisect import bisect_right
 import urllib.request
 from pathlib import Path
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox, simpledialog
 from reader_core import load_document
 from chapter_audio import read_book
 from audio_cache import AudioCache
 from live_tempo import TempoControl
 from app_version import VERSION
 import updates
+from reading_position import position as restore_position, source_seconds
 
 DATA = Path(os.environ.get('QUIET_PAGES_DATA', Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'QuietPages'))
 VOICES = {
@@ -56,6 +58,13 @@ class Reader:
         self.highlight_sequence = 0
         self.prepared_chapters = set()
         self.cursor = (0, 0)
+        self.cursor_span = None
+        self.text_offset = 0
+        self.position_voice = None
+        self.active_voice = None
+        self.last_save = time.monotonic()
+        self.restart_paused = False
+        self.bookmark_window = None
         self.durations = {}
         self.restart_at = None
         self.sleep_deadline = None
@@ -66,8 +75,10 @@ class Reader:
         DATA.mkdir(parents=True, exist_ok=True)
         self.audio_cache = AudioCache(DATA / 'audio-cache')
         try:
-            self.saved = json.loads((DATA / 'progress.json').read_text())
+            self.saved = json.loads((DATA / 'progress.json').read_text(encoding='utf-8'))
         except (OSError, ValueError):
+            self.saved = {}
+        if not isinstance(self.saved, dict):
             self.saved = {}
         try:
             self.preferences = json.loads((DATA / 'preferences.json').read_text())
@@ -82,6 +93,11 @@ class Reader:
         help_menu.add_command(label=f'About Talevoxa ({VERSION})', command=lambda: messagebox.showinfo(
             'Talevoxa', f'Talevoxa {VERSION}\nFree, private book listening.\nUpdates come from the official Talevoxa GitHub project.'))
         menu.add_cascade(label='Help', menu=help_menu)
+        bookmarks_menu = tk.Menu(menu, tearoff=False)
+        bookmarks_menu.add_command(label='Add bookmark…', command=self.add_bookmark, accelerator='Ctrl+B')
+        bookmarks_menu.add_command(label='Show bookmarks…', command=self.show_bookmarks)
+        menu.add_cascade(label='Bookmarks', menu=bookmarks_menu)
+        root.bind('<Control-b>', lambda event: self.add_bookmark())
         root.configure(menu=menu)
         root.title('Talevoxa — Your books, read aloud')
         root.geometry('920x700')
@@ -127,6 +143,7 @@ class Reader:
         self.chapter_only = tk.BooleanVar(value=False)
         self.chapter_option = ttk.Checkbutton(frame, text='Stop after this chapter', variable=self.chapter_only)
         self.chapter_option.pack(anchor='w', pady=(0, 8))
+        ttk.Button(chapter_row, text='Bookmarks', command=self.show_bookmarks).pack(side='left', padx=(8, 0))
         extras = ttk.Frame(frame)
         extras.pack(fill='x', pady=(0, 8))
         self.smooth = tk.BooleanVar(value=False)
@@ -251,6 +268,7 @@ class Reader:
         if index != self.index:
             self.index = index
             self.display()
+        self.text_offset = left
         chapter = self.current_chapter()
         local_index = index - self.chapter_starts[chapter]
         offset = sum(len(part) + 2 for part in self.chapters[chapter].parts[:local_index])
@@ -263,20 +281,147 @@ class Reader:
     def flush_highlights(self, finish=False):
         now = time.monotonic()
         while self.pending_highlights and (finish or self.pending_highlights[0][0] <= now):
-            _, _, kind, value = heapq.heappop(self.pending_highlights)
+            due, _, kind, value = heapq.heappop(self.pending_highlights)
             if self.cancel.is_set():
                 continue
             if kind == 'position':
                 self.index = value
+                self.cursor = (value, 0)
+                self.cursor_span = None
+                self.text_offset = 0
                 self.display()
             elif kind == 'cursor':
-                self.cursor = value
+                if self.active_voice:
+                    self.position_voice = self.active_voice
+                self.cursor = value[:2]
+                self.cursor_span = (value[0], value[1], value[2], due, value[3]) if len(value) == 4 else None
+                self.refresh_cursor()
                 if not self.seeking and self.parts:
-                    index, seconds = value
+                    index, seconds = self.cursor
                     duration = self.durations.get(index, 0)
                     self.seek.set(index - self.chapter_starts[self.current_chapter()] + (seconds / duration if duration else 0))
             else:
                 self.show_word(value)
+
+    def refresh_cursor(self):
+        if self.cursor_span:
+            index, start, end, due, duration = self.cursor_span
+            self.cursor = (index, source_seconds(start, end, due, duration, time.monotonic()))
+
+    def capture_position(self):
+        # Capture events already queued by the audio thread, even between UI polls.
+        retained = []
+        while True:
+            try:
+                kind, value = self.events.get_nowait()
+            except queue.Empty:
+                break
+            if kind == 'at':
+                due, action, data = value
+                self.highlight_sequence += 1
+                heapq.heappush(self.pending_highlights, (due, self.highlight_sequence, action, data))
+            else:
+                retained.append((kind, value))
+        for event in retained:
+            self.events.put(event)
+        self.flush_highlights()
+        self.refresh_cursor()
+
+    def current_position(self):
+        index, seconds = self.cursor if self.cursor[0] == self.index else (self.index, 0)
+        return {'index': index, 'seconds': seconds, 'text_offset': self.text_offset,
+                'voice': self.position_voice, 'speed': self.playback_speed.get()}
+
+    def apply_position(self, value):
+        value = restore_position(value, self.parts)
+        self.index = value['index']
+        self.cursor = (self.index, value['seconds'])
+        self.cursor_span = None
+        self.text_offset = value['text_offset']
+        self.position_voice = value['voice']
+        if self.position_voice in VOICES.values():
+            self.voice.set(next(name for name, voice in VOICES.items() if voice == self.position_voice))
+        self.speed.set(value['speed'])
+        self.display()
+
+    def bookmark_entries(self):
+        record = self.saved.get(self.book_id, {})
+        values = record.get('bookmarks', []) if isinstance(record, dict) else []
+        return [v for v in values if isinstance(v, dict) and isinstance(v.get('position'), dict)] if isinstance(values, list) else []
+
+    def add_bookmark(self):
+        if not self.parts or (self.busy and not self.playing):
+            return
+        self.capture_position()
+        point = self.current_position()
+        chapter = self.chapters[self.current_chapter()].title
+        name = simpledialog.askstring('Add bookmark', 'Name this place:', initialvalue=chapter, parent=self.root)
+        if name and name.strip():
+            entries = self.bookmark_entries()
+            entries.append({'id': uuid.uuid4().hex, 'name': name.strip()[:120], 'position': point})
+            self.save(bookmarks=entries)
+            self.status.configure(text=f'Bookmark saved: {name.strip()[:60]}')
+            if self.bookmark_window and self.bookmark_window.winfo_exists():
+                self.refresh_bookmarks()
+
+    def show_bookmarks(self):
+        if not self.parts:
+            messagebox.showinfo('Bookmarks', 'Open a book to view its bookmarks.')
+            return
+        if self.bookmark_window and self.bookmark_window.winfo_exists():
+            self.bookmark_window.lift()
+            return
+        window = self.bookmark_window = tk.Toplevel(self.root)
+        window.title('Bookmarks · Talevoxa')
+        window.geometry('600x320')
+        window.transient(self.root)
+        self.bookmark_list = tk.Listbox(window, exportselection=False)
+        self.bookmark_list.pack(fill='both', expand=True, padx=12, pady=12)
+        buttons = ttk.Frame(window)
+        buttons.pack(fill='x', padx=12, pady=(0, 12))
+        for label, action in [('Go to', 'go'), ('Rename', 'rename'), ('Delete', 'delete')]:
+            ttk.Button(buttons, text=label, command=lambda a=action: self.bookmark_action(a)).pack(side='left', padx=3)
+        ttk.Button(buttons, text='Add bookmark', command=self.add_bookmark).pack(side='right')
+        self.bookmark_list.bind('<Double-Button-1>', lambda event: self.bookmark_action('go'))
+        self.refresh_bookmarks()
+
+    def refresh_bookmarks(self):
+        self.bookmark_list.delete(0, 'end')
+        for entry in self.bookmark_entries():
+            point = restore_position(entry['position'], self.parts)
+            chapter = max(0, bisect_right(self.chapter_starts, point['index']) - 1)
+            excerpt = self.parts[point['index']][point['text_offset']:][:45]
+            self.bookmark_list.insert('end', f'{entry.get("name", "Bookmark")} · {self.chapters[chapter].title} · {excerpt}')
+
+    def bookmark_action(self, action):
+        selected = self.bookmark_list.curselection()
+        entries = self.bookmark_entries()
+        if not selected or selected[0] >= len(entries):
+            return
+        i = selected[0]
+        if action == 'go':
+            if self.busy and not self.playing:
+                return
+            if self.playing:
+                was_paused = self.paused.is_set()
+                self.stop()
+                self.restart_at = restore_position(entries[i]['position'], self.parts)
+                self.restart_paused = was_paused
+            else:
+                self.apply_position(entries[i]['position'])
+            self.bookmark_window.destroy()
+            return
+        if action == 'rename':
+            name = simpledialog.askstring('Rename bookmark', 'Bookmark name:', initialvalue=entries[i].get('name', ''), parent=self.bookmark_window)
+            if not name or not name.strip():
+                return
+            entries[i]['name'] = name.strip()[:120]
+        elif action == 'delete':
+            if not messagebox.askyesno('Delete bookmark', 'Delete this bookmark? Your saved reading position will be kept.', parent=self.bookmark_window):
+                return
+            entries.pop(i)
+        self.save(bookmarks=entries)
+        self.refresh_bookmarks()
 
     def set_sleep_timer(self, event=None):
         value = self.sleep_choice.get()
@@ -302,16 +447,21 @@ class Reader:
 
     def seek_to(self, index, seconds):
         if self.playing:
+            was_paused = self.paused.is_set()
             self.stop()
             self.restart_at = (index, seconds)
+            self.restart_paused = was_paused
         elif not self.busy:
             self.index = index
             self.cursor = (index, seconds)
+            self.cursor_span = None
+            self.text_offset = 0
             self.display()
 
     def rewind(self):
         if not self.parts or (self.busy and not self.playing):
             return
+        self.capture_position()
         index, seconds = self.cursor if self.cursor[0] == self.index else (self.index, 0)
         seconds -= 15 * self.playback_speed.get()
         while seconds < 0 and index > self.chapter_starts[self.current_chapter()]:
@@ -330,6 +480,8 @@ class Reader:
         if self.chapters and not self.busy:
             self.index = self.chapter_starts[self.chapter_picker.current()]
             self.cursor = (self.index, 0)
+            self.cursor_span = None
+            self.text_offset = 0
             self.display()
 
     def move_chapter(self, step):
@@ -337,14 +489,21 @@ class Reader:
             chapter = max(0, min(len(self.chapters) - 1, self.current_chapter() + step))
             self.index = self.chapter_starts[chapter]
             self.cursor = (self.index, 0)
+            self.cursor_span = None
+            self.text_offset = 0
             self.display()
 
-    def save(self):
+    def save(self, bookmarks=None):
         if self.book_id:
-            self.saved[self.book_id] = self.index
+            entries = self.bookmark_entries() if bookmarks is None else bookmarks
+            self.saved[self.book_id] = {**self.current_position(), 'bookmarks': entries}
             temp = DATA / 'progress.tmp'
-            temp.write_text(json.dumps(self.saved), encoding='utf-8')
-            temp.replace(DATA / 'progress.json')
+            try:
+                temp.write_text(json.dumps(self.saved, ensure_ascii=False), encoding='utf-8')
+                temp.replace(DATA / 'progress.json')
+                self.last_save = time.monotonic()
+            except OSError:
+                self.status.configure(text='Could not save your place. Check available disk space and folder permissions.')
 
     def open_book(self):
         if self.busy:
@@ -352,6 +511,10 @@ class Reader:
         name = filedialog.askopenfilename(filetypes=[('Books and Word documents', '*.epub *.pdf *.txt *.docx *.doc'), ('All files', '*.*')])
         if not name:
             return
+        self.capture_position()
+        self.save()
+        if self.bookmark_window and self.bookmark_window.winfo_exists():
+            self.bookmark_window.destroy()
         self.set_busy(True)
         self.cancel.clear()
         self.status.configure(text='Opening book…')
@@ -374,6 +537,8 @@ class Reader:
         if self.parts and not self.busy:
             self.index = max(0, min(len(self.parts) - 1, self.index + step))
             self.cursor = (self.index, 0)
+            self.cursor_span = None
+            self.text_offset = 0
             self.display()
 
     def set_busy(self, value):
@@ -409,7 +574,7 @@ class Reader:
             self.engine = Kokoro(str(DATA / 'kokoro-v1.0.onnx'), str(DATA / 'voices-v1.0.bin'))
         return self.engine
 
-    def start(self, preview=False):
+    def start(self, preview=False, keep_paused=False):
         if self.busy or (not preview and not self.parts):
             return
         try:
@@ -421,10 +586,15 @@ class Reader:
             return
         voice = VOICES[self.voice.get()]
         self.playback_speed.set(speed)
+        start_char = None
+        if not preview and self.position_voice and self.position_voice != voice:
+            start_char = self.text_offset
         if not preview and self.audio_settings != (voice, 1):
             self.durations.clear()
-            self.cursor = (self.index, 0)
             self.audio_settings = (voice, 1)
+        if not preview:
+            self.active_voice = voice
+            self.cursor_span = None
         start = self.index
         start_seconds = self.cursor[1] if self.cursor[0] == start and not preview else 0
         reserve = 12 if self.smooth.get() else 0
@@ -439,7 +609,9 @@ class Reader:
         self.pending_highlights.clear()
         self.prepared_chapters.clear()
         self.paused.clear()
-        self.pause.configure(text='Pause')
+        if keep_paused:
+            self.paused.set()
+        self.pause.configure(text='Resume' if keep_paused else 'Pause')
         self.set_busy(True)
         self.playing = not preview
         self.status.configure(text='Preparing your voice…')
@@ -450,7 +622,7 @@ class Reader:
                 read_book(self.get_engine, parts, first, end, chapter_starts if not preview else [0],
                           voice, 1, self.cancel, self.paused, self.events, sd.OutputStream, preview,
                           cache=self.audio_cache, start_seconds=start_seconds, buffer_seconds=reserve,
-                          live_speed=self.playback_speed.get)
+                          live_speed=self.playback_speed.get, start_char=start_char)
             except InterruptedError:
                 pass
             except Exception as exc:
@@ -468,10 +640,16 @@ class Reader:
         else:
             self.paused.set()
             self.pause.configure(text='Resume')
+        self.capture_position()
+        self.save()
 
     def stop(self):
         self.restart_at = None
+        self.restart_paused = False
+        self.capture_position()
+        self.cursor_span = None
         self.cancel.set()
+        self.save()
         self.pending_highlights.clear()
         self.paused.clear()
         self.pause.configure(text='Pause')
@@ -507,28 +685,37 @@ class Reader:
                     self.chapters = book.chapters
                     self.chapter_starts = book.starts
                     self.chapter_picker.configure(values=[f'{i + 1}. {chapter.title}' for i, chapter in enumerate(self.chapters)])
-                    self.index = max(0, min(int(self.saved.get(self.book_id, 0)), len(self.parts) - 1))
-                    self.cursor = (self.index, 0)
                     self.title.configure(text=name[:28])
-                    self.display()
+                    self.audio_settings = None
+                    self.apply_position(self.saved.get(self.book_id, 0))
                 elif kind == 'error':
+                    self.capture_position()
+                    self.cursor_span = None
+                    self.save()
                     self.pending_highlights.clear()
                     messagebox.showerror('Talevoxa', value)
                 elif kind == 'done':
                     self.flush_highlights(finish=True)
-                    if not self.cancel.is_set():
-                        self.cursor = (self.index, 0)
+                    self.refresh_cursor()
+                    self.cursor_span = None
+                    self.save()
                     self.pending_highlights.clear()
                     self.set_busy(False)
                     self.playing = False
                     self.pause.configure(text='Pause')
                     self.status.configure(text='Ready · Your place is saved')
                     if self.restart_at is not None:
-                        self.index, seconds = self.restart_at
-                        self.cursor = (self.index, seconds)
+                        if isinstance(self.restart_at, dict):
+                            self.apply_position(self.restart_at)
+                        else:
+                            self.index, seconds = self.restart_at
+                            self.cursor = (self.index, seconds)
+                            self.text_offset = 0
+                            self.display()
                         self.restart_at = None
-                        self.display()
-                        self.root.after_idle(self.start)
+                        keep_paused = self.restart_paused
+                        self.restart_paused = False
+                        self.root.after_idle(lambda p=keep_paused: self.start(keep_paused=p))
                 elif kind == 'update_found':
                     self.available_update, manual = value
                     self.update_busy = False
@@ -553,6 +740,9 @@ class Reader:
         except queue.Empty:
             pass
         self.flush_highlights()
+        self.refresh_cursor()
+        if self.playing and time.monotonic() - self.last_save >= 1:
+            self.save()
         if self.sleep_deadline is not None and time.monotonic() >= self.sleep_deadline:
             self.sleep_deadline = None
             self.sleep_choice.set('Off')
@@ -560,7 +750,7 @@ class Reader:
         self.root.after(20, self.poll)
 
     def close(self):
-        self.cancel.set()
+        self.stop()
         self.update_cancel.set()
         self.root.destroy()
 
