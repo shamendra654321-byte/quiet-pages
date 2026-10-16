@@ -1,6 +1,6 @@
 # Talevoxa: competitor research and free-product roadmap
 
-Reviewed 16 October 2026. This is a review of public product pages and documentation, not a hands-on test of paid accounts. Features and limits vary by plan, model and device. Proposed features below are not release promises.
+Research reviewed 16 October 2026; delivery status updated 17 October 2026. This is a review of public product pages and documentation, not a hands-on test of paid accounts. Features and limits vary by plan, model and device. Proposed features below are not release promises.
 
 ## Recommendation
 
@@ -90,9 +90,9 @@ Each release should announce only shipped behavior, give clear limitations and p
 
 ## Brand and Google search
 
-The owner selected Talevoxa. Preliminary exact-name searches found no obvious competing product, but this is not a trademark, domain or app-store clearance. Keep the repository URL and updater asset names stable during the visible rename.
+The owner selected Talevoxa. Website branding is live, and Windows preview-8-1 passed the build, tests and installed-app/uninstall checks and was published. Existing updater filenames and storage locations are retained. Preliminary exact-name searches found no obvious competing product, but this is not a trademark, domain or app-store clearance. Keep the repository URL and updater asset names stable during the visible rename.
 
-The GitHub homepage and sitemap already exist. Add Google ownership verification only using the owner's actual token. In Search Console, add the URL-prefix property https://shamendra654321-byte.github.io/quiet-pages/, choose HTML tag, publish the tag, then verify. Submit sitemap.xml and use URL Inspection to request homepage indexing. No token has been supplied yet, and no indexing request has been completed. [Google verification instructions](https://support.google.com/webmasters/answer/9008080?hl=en)
+The GitHub homepage and sitemap already exist. Add Google ownership verification only using the owner's actual token. In Search Console, add the URL-prefix property https://shamendra654321-byte.github.io/quiet-pages/, choose HTML tag, publish the tag, then verify. Submit sitemap.xml and use URL Inspection to request homepage indexing. Completed: the HTML tag was published, Google confirmed ownership, and the homepage indexing request was accepted into its priority crawl queue. The sitemap submission was accepted, but its processing report still says Couldn't fetch after one retry on 17 October. Direct HTTP checks return 200 with valid sitemap XML; Google processing is not yet confirmed. Search inclusion is not yet confirmed. [Google verification instructions](https://support.google.com/webmasters/answer/9008080?hl=en)
 
 Google decides whether and when to index. Requests do not guarantee inclusion or ranking. Search-oriented titles, accurate visible descriptions and links from the public repository help discovery; structured data must describe real features, with no fabricated reviews or ratings. [Google recrawl guidance](https://developers.google.com/search/docs/crawling-indexing/ask-google-to-recrawl)
 
