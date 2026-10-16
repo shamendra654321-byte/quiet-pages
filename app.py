@@ -1,4 +1,4 @@
-"""Quiet Pages: an offline Windows book reader."""
+"""Talevoxa: an offline Windows book reader."""
 import hashlib
 import heapq
 import time
@@ -77,13 +77,13 @@ class Reader:
         menu = tk.Menu(root)
         help_menu = tk.Menu(menu, tearoff=False)
         help_menu.add_command(label='Check for updates', command=self.check_updates)
-        help_menu.add_checkbutton(label='Check for updates when Quiet Pages opens', variable=self.auto_updates,
+        help_menu.add_checkbutton(label='Check for updates when Talevoxa opens', variable=self.auto_updates,
                                   command=self.save_preferences)
-        help_menu.add_command(label=f'About Quiet Pages ({VERSION})', command=lambda: messagebox.showinfo(
-            'Quiet Pages', f'Quiet Pages {VERSION}\nFree, private book listening.\nUpdates come from the official Quiet Pages GitHub project.'))
+        help_menu.add_command(label=f'About Talevoxa ({VERSION})', command=lambda: messagebox.showinfo(
+            'Talevoxa', f'Talevoxa {VERSION}\nFree, private book listening.\nUpdates come from the official Talevoxa GitHub project.'))
         menu.add_cascade(label='Help', menu=help_menu)
         root.configure(menu=menu)
-        root.title('Quiet Pages — Your books, read aloud')
+        root.title('Talevoxa — Your books, read aloud')
         root.geometry('920x700')
         root.minsize(720, 550)
         root.configure(bg='#f5f2eb')
@@ -94,7 +94,7 @@ class Reader:
         style.configure('TButton', font=('Segoe UI', 11), padding=9)
         frame = ttk.Frame(root, padding=26)
         frame.pack(fill='both', expand=True)
-        ttk.Label(frame, text='Quiet Pages', font=('Georgia', 30)).pack(anchor='w')
+        ttk.Label(frame, text='Talevoxa', font=('Georgia', 30)).pack(anchor='w')
         ttk.Label(frame, text='Make time for a good book. Listen at your own pace.').pack(anchor='w', pady=(0, 18))
         row = ttk.Frame(frame)
         row.pack(fill='x')
@@ -190,7 +190,7 @@ class Reader:
             if self.busy:
                 messagebox.showinfo('Update ready', 'Stop reading first, then choose Restart to update. Your place is saved.')
                 return
-            if messagebox.askyesno('Update ready', 'Restart Quiet Pages with the new version now? Your books, voices and saved place will be kept.'):
+            if messagebox.askyesno('Update ready', 'Restart Talevoxa with the new version now? Your books, voices and saved place will be kept.'):
                 try:
                     updates.activate_update(DATA, self.installed_update)
                     self.close()
@@ -201,7 +201,7 @@ class Reader:
                 messagebox.showinfo('Development copy', 'In-app installation is available in the downloaded Windows app. This source copy is updated through GitHub.')
                 return
             release = self.available_update
-            if not messagebox.askyesno('New Quiet Pages update', f'{release["name"]}\n\n{release["notes"][:2500]}\n\nDownload and prepare this update? Reading can continue while it downloads.'):
+            if not messagebox.askyesno('New Talevoxa update', f'{release["name"]}\n\n{release["notes"][:2500]}\n\nDownload and prepare this update? Reading can continue while it downloads.'):
                 return
             self.update_busy = True
             self.update_cancel.clear()
@@ -513,7 +513,7 @@ class Reader:
                     self.display()
                 elif kind == 'error':
                     self.pending_highlights.clear()
-                    messagebox.showerror('Quiet Pages', value)
+                    messagebox.showerror('Talevoxa', value)
                 elif kind == 'done':
                     self.flush_highlights(finish=True)
                     if not self.cancel.is_set():
@@ -537,7 +537,7 @@ class Reader:
                         if self.available_update:
                             self.update_action()
                         else:
-                            messagebox.showinfo('Quiet Pages updates', f'You are up to date ({VERSION}).')
+                            messagebox.showinfo('Talevoxa updates', f'You are up to date ({VERSION}).')
                 elif kind == 'update_progress':
                     self.update_button.configure(text=value.replace('Downloading update:', 'Update:').replace('Checking and unpacking update…', 'Unpacking…'))
                 elif kind == 'update_ready':
@@ -549,7 +549,7 @@ class Reader:
                     self.update_busy = False
                     self.update_button.configure(text='Retry update' if self.available_update else 'Check updates', state='normal')
                     if manual:
-                        messagebox.showerror('Quiet Pages updates', f'Could not finish the update. Your current app is unchanged.\n\n{error}')
+                        messagebox.showerror('Talevoxa updates', f'Could not finish the update. Your current app is unchanged.\n\n{error}')
         except queue.Empty:
             pass
         self.flush_highlights()

@@ -35,4 +35,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "preview-${{ github.run_number }}-${{ github.run_attempt }}" dist/QuietPages-Windows-x64.zip dist/QuietPages-Setup-Windows-x64.exe --target "${{ github.sha }}" --title "Quiet Pages Windows preview ${{ github.run_number }}" --prerelease --notes-file RELEASE_NOTES.md
+          gh release create "preview-${{ github.run_number }}-${{ github.run_attempt }}" dist/QuietPages-Windows-x64.zip dist/QuietPages-Setup-Windows-x64.exe --target "${{ github.sha }}" --title "Talevoxa Windows preview ${{ github.run_number }}" --prerelease --notes-file RELEASE_NOTES.md

@@ -61,7 +61,7 @@
         meta.append(time);
         const body = create('div');
         body.append(create('h3', '', release.name || release.tag_name));
-        const notes = (release.body || 'A new Quiet Pages release is available. Open the full release notes for details.').replace(/^#{1,6}\s+/gm, '').replace(/\*\*/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+        const notes = (release.body || 'A new Talevoxa release is available. Open the full release notes for details.').replace(/^#{1,6}\s+/gm, '').replace(/\*\*/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
         body.append(create('p', '', notes.length > 1000 ? notes.slice(0, 1000) + '…' : notes));
         const link = create('a', 'text-link', 'Read the release notes ↗'); link.href = release.html_url; body.append(link);
         article.append(meta, body); fragment.append(article);

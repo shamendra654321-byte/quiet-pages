@@ -1,8 +1,10 @@
-# Quiet Pages
+# Talevoxa
+
+Previously called Quiet Pages. Existing users can update in the app. Download filenames, the repository address and the local data folder retain their original names for compatibility. Existing shortcuts still work; running the new installer adds Talevoxa to Start.
 
 A free Windows desktop reader for listening to your books with local Kokoro voices.
 
-**Download page, voice samples and updates:** https://quiet-pages.abuzzlion9.chatgpt.site
+**Download page, voice samples and updates:** https://shamendra654321-byte.github.io/quiet-pages/
 
 ## Windows download
 
@@ -35,11 +37,11 @@ This is an early prototype. Scanned pages are recognised locally. OCR can misrea
 
 Preview 5 uses a background worker to prepare audio ahead of playback, keeping one output stream open across chapters. It starts with a short sentence rather than waiting for the whole chapter. Preparation runs at most one chapter ahead, with a 256 MB pending-audio budget and temporary files removed as they are consumed. Pause allows preparation to continue; Stop cancels the queue and waits for the in-progress inference call before the voice engine is reused. Stop after this chapter never prepares or plays the following chapter.
 
-Kokoro supplies phoneme timestamps. Quiet Pages aligns those sounds to the original words, including expanded numbers, and schedules highlights using the audio timeline and device latency. It does not synthesize words separately or invent evenly spaced word timings. If timing is missing or cannot be matched reliably, passage highlighting remains available. Generated sections and timings are also saved in the local audio-cache folder, bounded to 2 GB with oldest-used entries evicted first. Voice, speed, text and synthesis version identify entries. Cached playback does not load the voice engine. Seeking within prepared passages uses audio time; unprepared passages start at their beginning. Rewind stays in the current chapter and falls back to the previous passage start if its duration is unknown. The sleep timer counts wall-clock time, including pauses.
+Kokoro supplies phoneme timestamps. Talevoxa aligns those sounds to the original words, including expanded numbers, and schedules highlights using the audio timeline and device latency. It does not synthesize words separately or invent evenly spaced word timings. If timing is missing or cannot be matched reliably, passage highlighting remains available. Generated sections and timings are also saved in the local audio-cache folder, bounded to 2 GB with oldest-used entries evicted first. Voice, speed, text and synthesis version identify entries. Cached playback does not load the voice engine. Seeking within prepared passages uses audio time; unprepared passages start at their beginning. Rewind stays in the current chapter and falls back to the previous passage start if its duration is unknown. The sleep timer counts wall-clock time, including pauses.
 
 ## Updates inside the app
 
-Starting with preview 4, Quiet Pages checks the official public GitHub release list when it opens. An Update available button appears when a newer preview is ready. Choose it to read the announcement and download. Then choose Restart to update after stopping playback. Your voices and saved positions stay in the same data folder. This only contacts GitHub for release information and downloads; it never sends your book text.
+Starting with preview 4, Talevoxa checks the official public GitHub release list when it opens. An Update available button appears when a newer preview is ready. Choose it to read the announcement and download. Then choose Restart to update after stopping playback. Your voices and saved positions stay in the same data folder. This only contacts GitHub for release information and downloads; it never sends your book text.
 
 Help → Check for updates checks manually. Help also lets you turn startup checks off. Being offline does not stop reading. GitHub rate limits can temporarily prevent checks.
 

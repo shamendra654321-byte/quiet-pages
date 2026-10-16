@@ -6,7 +6,7 @@ $env:QUIET_PAGES_DATA = Join-Path $testRoot 'data'
 New-Item -ItemType Directory -Force -Path $testRoot, $env:QUIET_PAGES_DATA | Out-Null
 $process = Start-Process -FilePath 'dist/QuietPages-Setup-Windows-x64.exe' -ArgumentList @('/S', "/D=$target") -WindowStyle Hidden -Wait -PassThru
 if ($process.ExitCode -ne 0 -or -not (Test-Path -LiteralPath "$target/QuietPages.exe")) { throw 'Installer failed' }
-$shortcut = Join-Path ([Environment]::GetFolderPath('StartMenu')) 'Programs/Quiet Pages/Quiet Pages.lnk'
+$shortcut = Join-Path ([Environment]::GetFolderPath('StartMenu')) 'Programs/Talevoxa/Talevoxa.lnk'
 if (-not (Test-Path -LiteralPath $shortcut)) { throw 'Start menu shortcut missing' }
 if (-not (Test-Path 'HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall/QuietPages')) { throw 'Uninstall registration missing' }
 Set-Content -LiteralPath "$target/my-book.txt" -Value 'A user book must survive uninstall.'

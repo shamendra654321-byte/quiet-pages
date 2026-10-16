@@ -1,6 +1,6 @@
 Unicode true
 !include "MUI2.nsh"
-Name "Quiet Pages"
+Name "Talevoxa"
 OutFile "dist\QuietPages-Setup-Windows-x64.exe"
 InstallDir "$LOCALAPPDATA\Programs\QuietPages"
 RequestExecutionLevel user
@@ -15,15 +15,15 @@ SetCompressor /SOLID lzma
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_LANGUAGE "English"
 
-Section "Quiet Pages"
+Section "Talevoxa"
   SetShellVarContext current
   SetOutPath "$INSTDIR"
   File /r "dist\QuietPages\*.*"
   WriteUninstaller "$INSTDIR\Uninstall.exe"
-  CreateDirectory "$SMPROGRAMS\Quiet Pages"
-  CreateShortcut "$SMPROGRAMS\Quiet Pages\Quiet Pages.lnk" "$INSTDIR\QuietPages.exe"
-  CreateShortcut "$SMPROGRAMS\Quiet Pages\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\QuietPages" "DisplayName" "Quiet Pages"
+  CreateDirectory "$SMPROGRAMS\Talevoxa"
+  CreateShortcut "$SMPROGRAMS\Talevoxa\Talevoxa.lnk" "$INSTDIR\QuietPages.exe"
+  CreateShortcut "$SMPROGRAMS\Talevoxa\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\QuietPages" "DisplayName" "Talevoxa"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\QuietPages" "UninstallString" '$\"$INSTDIR\Uninstall.exe$\"'
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\QuietPages" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\QuietPages" "DisplayIcon" "$INSTDIR\QuietPages.exe"
@@ -46,6 +46,9 @@ Section "Uninstall"
   RMDir /r "$INSTDIR\source"
   RMDir /r "$INSTDIR\third-party-source"
   RMDir "$INSTDIR"
+  Delete "$SMPROGRAMS\Talevoxa\Talevoxa.lnk"
+  Delete "$SMPROGRAMS\Talevoxa\Uninstall.lnk"
+  RMDir "$SMPROGRAMS\Talevoxa"
   Delete "$SMPROGRAMS\Quiet Pages\Quiet Pages.lnk"
   Delete "$SMPROGRAMS\Quiet Pages\Uninstall.lnk"
   RMDir "$SMPROGRAMS\Quiet Pages"
