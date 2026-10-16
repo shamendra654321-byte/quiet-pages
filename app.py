@@ -15,6 +15,7 @@ from tkinter import ttk, filedialog, messagebox
 from reader_core import load_document
 from chapter_audio import read_book
 from audio_cache import AudioCache
+from live_tempo import TempoControl
 from app_version import VERSION
 import updates
 
@@ -61,6 +62,7 @@ class Reader:
         self.playing = False
         self.audio_settings = None
         self.seeking = False
+        self.playback_speed = TempoControl()
         DATA.mkdir(parents=True, exist_ok=True)
         self.audio_cache = AudioCache(DATA / 'audio-cache')
         try:
@@ -110,6 +112,7 @@ class Reader:
         self.preview = ttk.Button(settings, text='Preview voice', command=lambda: self.start(True))
         self.preview.pack(side='left', padx=10)
         self.speed = tk.DoubleVar(value=1)
+        self.speed.trace_add('write', self.change_speed)
         ttk.Label(settings, text='Speed').pack(side='left', padx=(8, 4))
         ttk.Spinbox(settings, from_=0.5, to=2, increment=0.1, textvariable=self.speed, width=5).pack(side='left')
         chapter_row = ttk.Frame(frame)
@@ -279,6 +282,14 @@ class Reader:
         value = self.sleep_choice.get()
         self.sleep_deadline = None if value == 'Off' else time.monotonic() + int(value.split()[0]) * 60
 
+    def change_speed(self, *args):
+        # Tk values are read only on the UI thread. Invalid partial edits keep
+        # the last valid tempo while the person finishes typing.
+        try:
+            self.playback_speed.set(self.speed.get())
+        except tk.TclError:
+            pass
+
     def seek_in_chapter(self, event=None):
         self.seeking = False
         if self.parts and (not self.busy or self.playing):
@@ -302,7 +313,7 @@ class Reader:
         if not self.parts or (self.busy and not self.playing):
             return
         index, seconds = self.cursor if self.cursor[0] == self.index else (self.index, 0)
-        seconds -= 15
+        seconds -= 15 * self.playback_speed.get()
         while seconds < 0 and index > self.chapter_starts[self.current_chapter()]:
             index -= 1
             duration = self.durations.get(index)
@@ -409,10 +420,11 @@ class Reader:
             messagebox.showerror('Speed', 'Choose a speed between 0.5 and 2.0.')
             return
         voice = VOICES[self.voice.get()]
-        if not preview and self.audio_settings != (voice, speed):
+        self.playback_speed.set(speed)
+        if not preview and self.audio_settings != (voice, 1):
             self.durations.clear()
             self.cursor = (self.index, 0)
-            self.audio_settings = (voice, speed)
+            self.audio_settings = (voice, 1)
         start = self.index
         start_seconds = self.cursor[1] if self.cursor[0] == start and not preview else 0
         reserve = 12 if self.smooth.get() else 0
@@ -436,8 +448,9 @@ class Reader:
                 import sounddevice as sd
                 first = 0 if preview else start
                 read_book(self.get_engine, parts, first, end, chapter_starts if not preview else [0],
-                          voice, speed, self.cancel, self.paused, self.events, sd.OutputStream, preview,
-                          cache=self.audio_cache, start_seconds=start_seconds, buffer_seconds=reserve)
+                          voice, 1, self.cancel, self.paused, self.events, sd.OutputStream, preview,
+                          cache=self.audio_cache, start_seconds=start_seconds, buffer_seconds=reserve,
+                          live_speed=self.playback_speed.get)
             except InterruptedError:
                 pass
             except Exception as exc:

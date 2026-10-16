@@ -1,13 +1,13 @@
-## Saved audio, playback controls, scanned books and a Windows installer
+## Change reading speed while you listen
 
-Generated speech is now saved locally for faster replay, with a 2 GB cache. Cached sections play without loading the voice engine. Changing voice or speed creates a different recording.
+The speed control now takes effect during playback: no Stop and Play needed. Change from 0.5x to 2x while listening, and the current audio adjusts without restarting the passage. The narrator's pitch is preserved. Paused playback stays paused, with the new speed ready when you resume.
 
-Use the chapter seek bar, rewind 15 seconds, or set a 15/30/60-minute sleep timer. Seeking moves within prepared passages; unprepared passages start at their beginning. Rewind stays within the chapter and falls back to the previous passage start when its duration is unknown. Extra buffering prepares a 12-second reserve for slower computers. The next chapter still prepares while you listen; slow computers may still buffer.
+Quiet Pages now generates speech at its normal speed and changes tempo during playback. Prepared chapters and saved recordings can be reused at different speeds, without waiting for another voice generation. Word highlighting and seeking follow the original recording position as tempo changes. Rewind uses 15 seconds at the currently selected speed.
 
-Scanned PDF pages are now recognised offline using bundled OCR. Repeated PDF margin text and page numbers are removed conservatively; turn this off in Help before reopening a PDF if necessary. More spelled-out chapter numbers are recognised. OCR can make mistakes, especially with handwriting, columns or poor scans. English scans are the initial tested use case.
+Speed changes are applied in small audio blocks; sound already queued to your output device must finish first. Bluetooth or other high-latency devices may make the change take longer to hear. Extreme speeds can introduce some audio-processing artifacts. Existing normal-speed cached audio is reused; older cache entries generated at other speeds are no longer needed and expire normally.
 
-New users can choose QuietPages-Setup-Windows-x64.exe for a per-user installation with a Start menu shortcut and uninstaller. The portable ZIP and in-app updates remain available. Uninstalling preserves books, voices and saved data. This release is unsigned: Windows may still show Unknown publisher. Verified publisher identity requires a signing account or certificate.
+46 automated tests passed, including live speed changes in one stream, pitch preservation, duration, the final audio frame, invalid input and pause/position preservation. The Windows release workflow also tests the installed app with real voices, live tempo changes, cached replay and scanned PDFs before publishing.
 
-Existing users: choose Help → Check for updates, download, then Restart to update. Downloaded voices are kept. PDF cleanup can change a book's text identity, so a previously opened PDF may need its place selected again. Physical speaker and ordinary low-end PC testing remain outstanding.
+Update inside Quiet Pages: Help → Check for updates → download → Restart to update.
 
 Download page: https://quiet-pages.abuzzlion9.chatgpt.site

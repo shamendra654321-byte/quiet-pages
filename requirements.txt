@@ -4,3 +4,4 @@ pypdf==6.20.1
 beautifulsoup4==4.15.0
 rapidocr-onnxruntime==1.4.4
 pypdfium2==5.13.0
+audiotsm==0.1.2

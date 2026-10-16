@@ -9,6 +9,7 @@ import tempfile
 from pathlib import Path
 from audio_cache import AudioCache
 from reader_core import load_document
+from live_tempo import TempoControl
 from chapter_audio import read_book
 from app import Reader, DATA
 
@@ -35,8 +36,10 @@ def run():
     q = queue.Queue()
     first_audio = []
     started = time.monotonic()
+    tempo = TempoControl()
     class RecordingStream:
         def __init__(self, samplerate, **kwargs):
+            self.frames = 0
             self.output = wave.open(str(DATA / 'streaming-smoke.wav'), 'wb')
             self.output.setnchannels(1)
             self.output.setsampwidth(2)
@@ -47,13 +50,15 @@ def run():
             if not first_audio:
                 first_audio.append(time.monotonic() - started)
             self.output.writeframes((np.clip(samples, -1, 1) * 32767).astype('<i2').tobytes())
+            self.frames += len(samples)
+            tempo.set(1 if self.frames < 24000 else 1.7 if self.frames < 48000 else .8)
         def abort(self): raise AssertionError('Unexpected cancellation')
     read_book(engine, parts, 0, len(parts), [0, 1], 'af_heart', 1,
-              threading.Event(), threading.Event(), q, RecordingStream)
+              threading.Event(), threading.Event(), q, RecordingStream, live_speed=tempo.get)
     words = [value[2] for kind, value in list(q.queue) if kind == 'at' and value[1] == 'word']
     assert len(words) == sum(len(part.split()) for part in parts), 'Missing word timestamps'
     assert [parts[i][left:right] for i, left, right in words] == ' '.join(parts).split()
-    results.append(f'Streaming: first audio {first_audio[0]:.2f}s after engine load; {len(words)} timed words, two chapters')
+    results.append(f'Streaming: first audio {first_audio[0]:.2f}s after engine load; {len(words)} timed words, two chapters, live tempo 1 / 1.7 / 0.8')
     with tempfile.TemporaryDirectory() as folder:
         cache = AudioCache(Path(folder) / 'cache')
         for attempt in range(2):

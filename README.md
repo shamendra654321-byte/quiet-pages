@@ -21,7 +21,7 @@ The first Play or Preview downloads roughly 350 MB of model and voice data from 
 - Follow the full chapter with model-timed word highlighting and automatic scrolling.
 - Get update notices inside the app, read release notes, download and restart without visiting a website.
 - Nine American and British English male/female voices.
-- Preview a narrator, adjust speed from 0.5 to 2.0, pause, resume and stop.
+- Preview a narrator, adjust speed live from 0.5 to 2.0 without restarting, pause, resume and stop.
 - Move between passages and resume at the last saved passage when reopening a book.
 - CPU inference; no paid service or GPU required.
 
@@ -84,3 +84,7 @@ Voice descriptions and upstream quality estimates: https://huggingface.co/hexgra
 Runtime and model download: https://github.com/thewh1teagle/kokoro-onnx
 
 See THIRD_PARTY.md for dependency licensing. No books are included.
+
+## Live speed adjustment
+
+Speed changes apply to the audio currently playing, in small pitch-preserving WSOLA blocks. The normal-speed recording and its timestamps are reused at every tempo. Changing speed does not clear the prepared chapter, restart speech or leave pause mode. Already queued device audio introduces a short delay; Bluetooth may add more. Very fast/slow settings can introduce processing artifacts. Rewind uses 15 seconds at the current tempo. Invalid partial speed edits keep the last valid speed until a valid value is entered.

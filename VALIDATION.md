@@ -40,3 +40,7 @@ The following sections record earlier previews; their full-chapter preparation d
 - Internet download was tested separately. The first-run download interface has not been exercised interactively.
 
 Before calling this a stable public release, test opening representative EPUB/PDF/TXT books, first-run downloads, voice switching, pausing/resuming, stopping during generation, reopening a book and clean-machine operation.
+
+## Live tempo update
+
+46 automated tests passed locally. New checks measure unchanged 440 Hz pitch and expected duration at 0.5/1/1.5/2x, retention of final audio, source-position continuity during repeated speed changes, one output stream and one synthesis call during an active speed change, invalid input handling, and pause/cursor preservation. The packaged self-test now changes tempo during real speech and verifies all word highlights still appear. Physical speaker/Bluetooth latency and subjective artifacts still need hands-on listening checks.

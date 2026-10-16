@@ -80,6 +80,19 @@ class PlaybackTests(unittest.TestCase):
         self.assertEqual(self.reader.restart_at, (1, 2))
         self.assertTrue(self.reader.busy)
 
+    def test_speed_changes_live_without_stop_or_play_and_preserves_pause(self):
+        self.reader.playing = True
+        self.reader.set_busy(True)
+        self.reader.paused.set()
+        self.reader.cursor = (1, 5)
+        with patch.object(self.reader, 'stop') as stop, patch.object(self.reader, 'start') as start:
+            self.reader.speed.set(1.7)
+            self.assertEqual(self.reader.playback_speed.get(), 1.7)
+            self.assertEqual(self.reader.cursor, (1, 5))
+            self.assertTrue(self.reader.paused.is_set())
+            stop.assert_not_called()
+            start.assert_not_called()
+
     def test_continuous_and_saved_position(self):
         self.run_playback()
         self.assertEqual(self.engine.spoken, ['First.', 'More.', 'Last.'])

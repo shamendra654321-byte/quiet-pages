@@ -8,12 +8,14 @@ from bisect import bisect_right
 from pathlib import Path
 import numpy as np
 from word_timing import speech_sections, word_timings
+from live_tempo import tempo_blocks
 
 MAX_BUFFER_BYTES = 256 * 1024 * 1024
 
 
 def read_book(engine, parts, start, end, chapter_starts, voice, speed, cancel,
-              paused, events, stream_factory, preview=False, cache=None, start_seconds=0, buffer_seconds=0):
+              paused, events, stream_factory, preview=False, cache=None, start_seconds=0, buffer_seconds=0,
+              live_speed=None):
     chapters = chapter_starts or [0]
     chapter_for = lambda index: max(0, bisect_right(chapters, index) - 1)
     condition = threading.Condition()
@@ -95,8 +97,9 @@ def read_book(engine, parts, start, end, chapter_starts, voice, speed, cancel,
         worker.start()
         if buffer_seconds:
             events.put(('status', 'Building a playback reserve for smoother listening…'))
+            reserve = buffer_seconds * (live_speed() if live_speed else 1)
             with condition:
-                while not stopped() and not state['finished'] and not state['blocked'] and state['seconds'] < buffer_seconds:
+                while not stopped() and not state['finished'] and not state['blocked'] and state['seconds'] < reserve:
                     condition.wait(0.05)
         total_frames = 0
         base = None
@@ -143,7 +146,10 @@ def read_book(engine, parts, start, end, chapter_starts, voice, speed, cancel,
                         base = time.monotonic() + latency - total_frames / rate
                     events.put(('status', 'Reading aloud · Preparing ahead' if words else 'Reading aloud · Passage highlighting'))
                     word_index = 0
-                    for offset in range(0, len(samples), 512):
+                    blocks = tempo_blocks(samples, live_speed) if live_speed else (
+                        (samples[o:o + 512], o, min(o + 512, len(samples))) for o in range(0, len(samples), 512))
+                    block_number = 0
+                    for block, offset, source_end in blocks:
                         if paused.is_set():
                             if hasattr(stream, 'stop'):
                                 stream.stop()  # Let already-submitted sound and highlights finish.
@@ -157,20 +163,21 @@ def read_book(engine, parts, start, end, chapter_starts, voice, speed, cancel,
                             stream.abort()
                             return
                         due = base + total_frames / rate
-                        if not preview and offset % 4096 == 0:
+                        if not preview and block_number % 8 == 0:
                             events.put(('at', (due, 'cursor', (index, section_start + offset / rate))))
                         if not preview and index != last_index:
                             events.put(('at', (due, 'position', index)))
                             last_index = index
-                        while word_index < len(words) and words[word_index][0] * rate < offset + 512:
+                        while word_index < len(words) and words[word_index][0] * rate < source_end:
                             begin, finish, left, right = words[word_index]
                             if not preview:
-                                events.put(('at', (due + max(0, begin - offset / rate), 'word',
+                                ratio = (source_end - offset) / len(block)
+                                events.put(('at', (due + max(0, begin - offset / rate) / ratio, 'word',
                                                    (index, text_offset + left, text_offset + right))))
                             word_index += 1
-                        block = samples[offset:offset + 512]
                         underflow = stream.write(block.reshape(-1, 1))
                         total_frames += len(block)
+                        block_number += 1
                         if underflow:
                             base = time.monotonic() + latency - total_frames / rate
             if not preview and not cancel.is_set() and end < len(parts):
