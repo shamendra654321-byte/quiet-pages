@@ -49,6 +49,7 @@ def build_reader(r, help_menu, voices):
     r.update_button.pack(side='right')
     r.open_button = ttk.Button(header, text='Open a book', command=r.open_book)
     r.open_button.pack(side='right', padx=10)
+    ttk.Button(header, text='Bookshelf', style='Quiet.TButton', command=r.show_bookshelf).pack(side='right')
 
     book = ttk.Frame(shell)
     book.grid(row=1, column=0, sticky='ew', pady=(0, 12))
@@ -139,6 +140,10 @@ def build_reader(r, help_menu, voices):
     help_menu.add_checkbutton(label='Remove repeated PDF headers and page numbers', variable=r.clean_pdf)
     r.status = ttk.Label(shell, text='Private listening · Free voices · Your books stay on this PC', style='Muted.TLabel', font=('Segoe UI', 9))
     r.status.grid(row=5, column=0, sticky='ew', pady=(8, 0))
+
+    r.reading_panels = (book, narrator, paper, player)
+    r.build_bookshelf(shell)
+    r.show_bookshelf()
 
     def resized(event):
         if event.widget == root:

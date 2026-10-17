@@ -1,9 +1,9 @@
-# A calmer reading space
+# Your books, easy to find
 
-Talevoxa has a refreshed layout with a larger paper-coloured reading area, softer colours and clearer grouping. The green Play button and playback controls stay together below the book; chapter navigation sits above the text.
+Talevoxa now opens on your personal bookshelf. Books you open are remembered automatically, with search, saved chapter labels and filters for in-progress or finished books.
 
-Your favourite narrator selector, Preview and More voices / downloads now share one tidy row. Bookmarks stay beside the book title. A scrollbar makes longer chapters easier to explore, and A+ / A- controls change the reading text size and remember your preference.
+Continue reading opens your most recent unfinished book at its saved position and starts playback. Double-click any book to open it without starting audio. Mark books finished, or use Locate file if a book has moved. Removing a bookshelf entry keeps the original file, saved position and bookmarks.
 
-Sleep timer and stop-after-chapter controls remain beside the player. Extra buffering for slower PCs is available in the Help menu. All 28 voices, downloads, saved positions, bookmarks and live speed changes remain available.
+Books opened in older versions appear on the shelf after you open them once in this update; existing saved positions and bookmarks are preserved. Books remain on your own computer.
 
 Use Check updates inside Talevoxa to install this release. This Windows preview remains unsigned.

@@ -29,7 +29,9 @@ VOICES = {label(v): v['id'] for v in CATALOG}
 
 
 
-class Reader(VoiceBrowser):
+from bookshelf import Library, Bookshelf
+
+class Reader(VoiceBrowser, Bookshelf):
     def __init__(self, root):
         self.root = root
         self.events = queue.Queue()
@@ -67,6 +69,10 @@ class Reader(VoiceBrowser):
         self.seeking = False
         self.playback_speed = TempoControl()
         DATA.mkdir(parents=True, exist_ok=True)
+        self.library = Library(DATA / 'library.sqlite3')
+        self.opening_path = None
+        self.opening_autoplay = False
+        self.opening_success = False
         self.audio_cache = AudioCache(DATA / 'audio-cache')
         try:
             self.saved = json.loads((DATA / 'progress.json').read_text(encoding='utf-8'))
@@ -414,7 +420,7 @@ class Reader(VoiceBrowser):
     def save(self, bookmarks=None):
         if self.book_id:
             entries = self.bookmark_entries() if bookmarks is None else bookmarks
-            self.saved[self.book_id] = {**self.current_position(), 'bookmarks': entries}
+            self.saved[self.book_id] = {**self.current_position(), 'bookmarks': entries, 'chapter_name': self.chapters[self.current_chapter()].title if self.chapters else ''}
             temp = DATA / 'progress.tmp'
             try:
                 temp.write_text(json.dumps(self.saved, ensure_ascii=False), encoding='utf-8')
@@ -423,10 +429,10 @@ class Reader(VoiceBrowser):
             except OSError:
                 self.status.configure(text='Could not save your place. Check available disk space and folder permissions.')
 
-    def open_book(self):
+    def open_book(self, name=None, expected_id=None, autoplay=False):
         if self.busy:
             return
-        name = filedialog.askopenfilename(filetypes=[('Books and Word documents', '*.epub *.pdf *.txt *.docx *.doc'), ('All files', '*.*')])
+        name = name or filedialog.askopenfilename(filetypes=[('Books and Word documents', '*.epub *.pdf *.txt *.docx *.doc'), ('All files', '*.*')])
         if not name:
             return
         self.capture_position()
@@ -435,6 +441,9 @@ class Reader(VoiceBrowser):
             self.bookmark_window.destroy()
         self.set_busy(True)
         self.cancel.clear()
+        self.opening_path = name
+        self.opening_autoplay = autoplay
+        self.opening_success = False
         self.status.configure(text='Opening book…')
         clean_pdf = self.clean_pdf.get()
         def work():
@@ -442,6 +451,10 @@ class Reader(VoiceBrowser):
                 book = load_document(name, progress=lambda text: self.events.put(('status', text)), cancel=self.cancel, clean_pdf=clean_pdf)
                 parts = book.parts
                 identity = hashlib.sha256('\n'.join(parts).encode()).hexdigest()
+                if self.cancel.is_set():
+                    raise InterruptedError()
+                if expected_id and identity != expected_id:
+                    raise ValueError('This file has different book text. Choose the original book, or use Open a book to add it separately.')
                 self.events.put(('book', (Path(name).stem, book, identity)))
             except InterruptedError:
                 pass
@@ -607,6 +620,10 @@ class Reader(VoiceBrowser):
                     self.title.configure(text=name[:100])
                     self.audio_settings = None
                     self.apply_position(self.saved.get(self.book_id, 0))
+                    if self.opening_path:
+                        self.library.remember(self.book_id, name, self.opening_path)
+                        self.opening_success = True
+                    self.show_reader()
                 elif kind == 'error':
                     self.capture_position()
                     self.cursor_span = None
@@ -624,6 +641,12 @@ class Reader(VoiceBrowser):
                     self.previewing = False
                     self.pause.configure(text='Pause')
                     self.status.configure(text='Ready · Your place is saved')
+                    if self.opening_path:
+                        autoplay = self.opening_autoplay and self.opening_success and not self.cancel.is_set()
+                        self.opening_path = None
+                        self.opening_autoplay = self.opening_success = False
+                        if autoplay:
+                            self.root.after_idle(self.start)
                     if self.restart_at is not None:
                         if isinstance(self.restart_at, dict):
                             self.apply_position(self.restart_at)

@@ -92,3 +92,7 @@ See THIRD_PARTY.md for dependency licensing. No books are included.
 ## Live speed adjustment
 
 Speed changes apply to the audio currently playing, in small pitch-preserving WSOLA blocks. The normal-speed recording and its timestamps are reused at every tempo. Changing speed does not clear the prepared chapter, restart speech or leave pause mode. Already queued device audio introduces a short delay; Bluetooth may add more. Very fast/slow settings can introduce processing artifacts. Rewind uses 15 seconds at the current tempo. Invalid partial speed edits keep the last valid speed until a valid value is entered.
+
+## Bookshelf and Continue reading
+
+Opened books appear automatically on the local bookshelf. Search titles, filter finished books, or choose Continue reading to resume the most recent unfinished book at its saved position. Locate file reconnects a moved book after verifying its text. Removing an entry never deletes the original file or saved progress. Older books appear after opening them once in this version.
