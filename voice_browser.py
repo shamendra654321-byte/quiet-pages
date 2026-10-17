@@ -37,7 +37,7 @@ class VoiceBrowser:
         filters.bind('<<ComboboxSelected>>', lambda e: self.refresh_voice_browser())
         area = ttk.Frame(w)
         area.pack(fill='both', expand=True, padx=16)
-        self.voice_table = ttk.Treeview(area, columns=('voice', 'accent', 'gender', 'status'), show='headings', selectmode='browse')
+        self.voice_table = ttk.Treeview(area, columns=('voice', 'accent', 'gender', 'status'), show='headings', selectmode='browse', height=4)
         for key, title, width in [('voice', 'Voice / favourite', 210), ('accent', 'Accent', 100), ('gender', 'Voice', 80), ('status', 'Voice file', 130)]:
             self.voice_table.heading(key, text=title)
             self.voice_table.column(key, width=width)

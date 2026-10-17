@@ -1,11 +1,9 @@
-# More voices, favourites and offline downloads
+# A calmer reading space
 
-Open More voices / downloads to explore all 28 English Kokoro voices, including Aoede, Kore, Sarah, Puck and Lewis. Preview the same short story with each voice, then choose Use voice. Stop playback before switching or previewing a narrator.
+Talevoxa has a refreshed layout with a larger paper-coloured reading area, softer colours and clearer grouping. The green Play button and playback controls stay together below the book; chapter navigation sits above the text.
 
-Your nine familiar voices remain favourites. Add or remove favourites to keep the main selector personal; filter the browser by favourites, American, British or downloaded voices.
+Your favourite narrator selector, Preview and More voices / downloads now share one tidy row. Bookmarks stay beside the book title. A scrollbar makes longer chapters easier to explore, and A+ / A- controls change the reading text size and remember your preference.
 
-Download selected saves one voice; Download all 28 saves every English voice. Both also download the shared engine if needed. Each voice is about 0.5 MB; all voices total about 15 MB, with a shared 326 MB engine downloaded once. Existing full voice packs are reused. Downloads show progress, can be cancelled and retried, and verify individual voice files before use.
+Sleep timer and stop-after-chapter controls remain beside the player. Extra buffering for slower PCs is available in the Help menu. All 28 voices, downloads, saved positions, bookmarks and live speed changes remain available.
 
-All 28 voices passed speech-generation checks. Heart and Bella remain our suggested starting points based on upstream training-data ratings. The other voices vary in consistency; those ratings are not listening scores, and previews are the best way to choose a comfortable narrator. This release does not claim a long-form human listening review of every voice.
-
-Exact-position resume and named bookmarks remain available. This Windows preview is free and unsigned. Use Check updates inside the app to install it.
+Use Check updates inside Talevoxa to install this release. This Windows preview remains unsigned.

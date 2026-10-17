@@ -14,6 +14,8 @@ The first Play or Preview downloads a shared speech engine (about 326 MB) and th
 
 ## Features
 
+- A spacious reading panel, grouped playback controls, chapter scrollbar and saved text-size controls (A+ / A-). Extra buffering is in the Help menu.
+
 - Open Word (.docx), DRM-free EPUB, text or scanned PDF and TXT books.
 - Offline OCR, conservative repeated PDF margin/page-number cleanup and more spelled-out chapter numbers.
 - Saved audio (2 GB cache), chapter seeking, 15-second rewind and a 15/30/60-minute sleep timer.
