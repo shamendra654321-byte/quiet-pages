@@ -44,3 +44,7 @@ Before calling this a stable public release, test opening representative EPUB/PD
 ## Live tempo update
 
 46 automated tests passed locally. New checks measure unchanged 440 Hz pitch and expected duration at 0.5/1/1.5/2x, retention of final audio, source-position continuity during repeated speed changes, one output stream and one synthesis call during an active speed change, invalid input handling, and pause/cursor preservation. The packaged self-test now changes tempo during real speech and verifies all word highlights still appear. Physical speaker/Bluetooth latency and subjective artifacts still need hands-on listening checks.
+
+## Voice browser and individual downloads (17 October 2026)
+
+65 unit/integration tests passed locally, including individual/all download reuse, checksum failure, cancellation cleanup, legacy pack reuse, favourites persistence, preview selection and window fit. All 28 English voices generated finite, non-silent sample audio (7.2 to 12.5 seconds for the same passage), with streaming, cache and OCR smoke checks passing. This is a technical synthesis check, not a long-form human listening review. Upstream grades are training-data estimates; voice pleasantness remains subjective.

@@ -21,7 +21,9 @@ def run():
     root.update()
     engine = reader.get_engine()
     results = []
-    for voice in ('af_heart', 'af_bella', 'bf_emma', 'am_michael'):
+    from voice_catalog import BY_ID
+    for voice in BY_ID:
+        engine = reader.get_engine(voice)
         samples, rate = engine.create('The evening light fell softly across the room. She opened her book, settled into a comfortable chair, and let the story carry her away.', voice=voice, speed=0.95, lang='en-gb' if voice.startswith('b') else 'en-us')
         assert len(samples) > rate and np.isfinite(samples).all()
         assert np.max(np.abs(samples)) > 0.01

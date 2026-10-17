@@ -22,21 +22,14 @@ import updates
 from reading_position import position as restore_position, source_seconds
 
 DATA = Path(os.environ.get('QUIET_PAGES_DATA', Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'QuietPages'))
-VOICES = {
-    'Heart · American · Female': 'af_heart',
-    'Bella · American · Female': 'af_bella',
-    'Nicole · American · Female': 'af_nicole',
-    'Michael · American · Male': 'am_michael',
-    'Fenrir · American · Male': 'am_fenrir',
-    'Emma · British · Female': 'bf_emma',
-    'Isabella · British · Female': 'bf_isabella',
-    'George · British · Male': 'bm_george',
-    'Fable · British · Male': 'bm_fable',
-}
-BASE = 'https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/'
+from voice_catalog import VOICES as CATALOG, label
+from voice_store import VoiceStore
+from voice_browser import VoiceBrowser
+VOICES = {label(v): v['id'] for v in CATALOG}
 
 
-class Reader:
+
+class Reader(VoiceBrowser):
     def __init__(self, root):
         self.root = root
         self.events = queue.Queue()
@@ -69,6 +62,7 @@ class Reader:
         self.restart_at = None
         self.sleep_deadline = None
         self.playing = False
+        self.previewing = False
         self.audio_settings = None
         self.seeking = False
         self.playback_speed = TempoControl()
@@ -84,6 +78,10 @@ class Reader:
             self.preferences = json.loads((DATA / 'preferences.json').read_text())
         except (OSError, ValueError):
             self.preferences = {}
+        if not isinstance(self.preferences, dict):
+            self.preferences = {}
+        self.voice_store = VoiceStore(DATA)
+        self.init_voices()
         self.auto_updates = tk.BooleanVar(value=self.preferences.get('auto_updates', True))
         menu = tk.Menu(root)
         help_menu = tk.Menu(menu, tearoff=False)
@@ -124,6 +122,7 @@ class Reader:
         settings.pack(fill='x', pady=18)
         self.voice = ttk.Combobox(settings, values=list(VOICES), state='readonly', width=32)
         self.voice.current(0)
+        self.update_voice_choices()
         self.voice.pack(side='left')
         self.preview = ttk.Button(settings, text='Preview voice', command=lambda: self.start(True))
         self.preview.pack(side='left', padx=10)
@@ -131,6 +130,7 @@ class Reader:
         self.speed.trace_add('write', self.change_speed)
         ttk.Label(settings, text='Speed').pack(side='left', padx=(8, 4))
         ttk.Spinbox(settings, from_=0.5, to=2, increment=0.1, textvariable=self.speed, width=5).pack(side='left')
+        ttk.Button(frame, text='More voices / downloads', command=self.show_voices).pack(anchor='w', pady=(0, 8))
         chapter_row = ttk.Frame(frame)
         chapter_row.pack(fill='x', pady=(0, 8))
         self.chapter_back = ttk.Button(chapter_row, text='← Chapter', command=lambda: self.move_chapter(-1))
@@ -164,7 +164,7 @@ class Reader:
         self.clean_pdf = tk.BooleanVar(value=True)
         help_menu.add_checkbutton(label='Remove repeated PDF headers and page numbers', variable=self.clean_pdf)
         self.text = tk.Text(frame, height=4, wrap='word', font=('Georgia', 17), bg='#fffdf8', fg='#243d38', relief='flat', padx=24, pady=24)
-        self.show_text('Welcome to your listening nook.\n\nOpen a book, choose a voice and press Play.\n\nThe first playback downloads the free voice pack (about 350 MB). After that, your books are read entirely on this computer.')
+        self.show_text('Welcome to your listening nook.\n\nOpen a book, choose a voice and press Play.\n\nThe first playback downloads a shared speech engine (about 326 MB) and your chosen voice (about 0.5 MB). Use More voices / downloads to preview, favourite or download more voices.')
         controls = ttk.Frame(frame)
         self.back = ttk.Button(controls, text='Previous', command=lambda: self.move(-1))
         self.back.pack(side='left')
@@ -547,31 +547,23 @@ class Reader:
             widget.configure(state='disabled' if value else 'normal')
         self.chapter_picker.configure(state='disabled' if value or not self.chapters else 'readonly')
 
-    def get_engine(self):
+    def get_engine(self, voice='af_heart'):
+        # Injected test engines do not need downloaded assets.
+        if self.engine is not None and not hasattr(self.engine, 'voices'):
+            return self.engine
+        self.voice_store.ensure([voice], self.cancel, lambda text: self.events.put(('status', text)))
         if self.engine is None:
-            for name in ('kokoro-v1.0.onnx', 'voices-v1.0.bin'):
-                target = DATA / name
-                if not target.exists():
-                    partial = target.with_suffix('.download')
-                    try:
-                        with urllib.request.urlopen(BASE + name, timeout=30) as response, partial.open('wb') as output:
-                            total = int(response.headers.get('Content-Length', 0))
-                            count = 0
-                            while True:
-                                if self.cancel.is_set():
-                                    raise InterruptedError()
-                                chunk = response.read(1024 * 1024)
-                                if not chunk:
-                                    break
-                                output.write(chunk)
-                                count += len(chunk)
-                                self.events.put(('status', f'Downloading free voices: {count // 1048576} / {total // 1048576} MB'))
-                        partial.replace(target)
-                    finally:
-                        partial.unlink(missing_ok=True)
-            self.events.put(('status', 'Loading voices…'))
+            self.events.put(('status', 'Loading voice engine...'))
             from kokoro_onnx import Kokoro
-            self.engine = Kokoro(str(DATA / 'kokoro-v1.0.onnx'), str(DATA / 'voices-v1.0.bin'))
+            with self.voice_store.lock:
+                pack = self.voice_store.engine_pack(voice)
+                self.engine = Kokoro(str(DATA / 'kokoro-v1.0.onnx'), str(pack))
+                # Close the archive so future voice changes never overwrite an open file.
+                archive = self.engine.voices
+                self.engine.voices = {voice: archive[voice]}
+                archive.close()
+        else:
+            self.engine.voices[voice] = self.voice_store.load(voice)
         return self.engine
 
     def start(self, preview=False, keep_paused=False):
@@ -614,12 +606,13 @@ class Reader:
         self.pause.configure(text='Resume' if keep_paused else 'Pause')
         self.set_busy(True)
         self.playing = not preview
+        self.previewing = preview
         self.status.configure(text='Preparing your voice…')
         def work():
             try:
                 import sounddevice as sd
                 first = 0 if preview else start
-                read_book(self.get_engine, parts, first, end, chapter_starts if not preview else [0],
+                read_book(lambda: self.get_engine(voice), parts, first, end, chapter_starts if not preview else [0],
                           voice, 1, self.cancel, self.paused, self.events, sd.OutputStream, preview,
                           cache=self.audio_cache, start_seconds=start_seconds, buffer_seconds=reserve,
                           live_speed=self.playback_speed.get, start_char=start_char)
@@ -660,7 +653,15 @@ class Reader:
         try:
             while True:
                 kind, value = self.events.get_nowait()
-                if kind == 'status':
+                if kind in ('voice_download_progress', 'voice_download_done'):
+                    self.voice_download_status = value
+                    if kind == 'voice_download_done':
+                        self.voice_download_busy = False
+                    if self.voice_window and self.voice_window.winfo_exists():
+                        self.voice_progress.configure(text=value)
+                        if kind == 'voice_download_done':
+                            self.refresh_voice_browser()
+                elif kind == 'status':
                     if str(value).startswith('Reading aloud') and self.current_chapter() + 1 in self.prepared_chapters:
                         value = 'Reading aloud · Next chapter ready'
                     self.status.configure(text=value)
@@ -702,6 +703,7 @@ class Reader:
                     self.pending_highlights.clear()
                     self.set_busy(False)
                     self.playing = False
+                    self.previewing = False
                     self.pause.configure(text='Pause')
                     self.status.configure(text='Ready · Your place is saved')
                     if self.restart_at is not None:
@@ -752,6 +754,7 @@ class Reader:
     def close(self):
         self.stop()
         self.update_cancel.set()
+        self.voice_download_cancel.set()
         self.root.destroy()
 
 

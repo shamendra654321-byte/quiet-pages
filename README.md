@@ -10,7 +10,7 @@ A free Windows desktop reader for listening to your books with local Kokoro voic
 
 Download `QuietPages-Setup-Windows-x64.exe` from Releases for a per-user installation with a Start menu shortcut and uninstaller. Alternatively, extract the entire `QuietPages-Windows-x64.zip` and open `QuietPages.exe`. No Python installation is needed. Both downloads are unsigned; Windows may show Unknown publisher.
 
-The first Play or Preview downloads roughly 350 MB of model and voice data from the kokoro-onnx project's GitHub release. Keep an internet connection for this first step. Later listening works offline; book text is never uploaded. Files and reading positions are kept in `%LOCALAPPDATA%\QuietPages`.
+The first Play or Preview downloads a shared speech engine (about 326 MB) and the selected voice (about 0.5 MB). Use More voices / downloads to download one voice or all 28 English voices (about 15 MB plus the shared engine). Existing full voice packs are reused without downloading again. Keep an internet connection for this first step. Later listening works offline; book text is never uploaded. Files and reading positions are kept in `%LOCALAPPDATA%\QuietPages`.
 
 ## Features
 
@@ -22,7 +22,7 @@ The first Play or Preview downloads roughly 350 MB of model and voice data from 
 - Start after a short opening section, with the current and next chapter prepared in the background.
 - Follow the full chapter with model-timed word highlighting and automatic scrolling.
 - Get update notices inside the app, read release notes, download and restart without visiting a website.
-- Nine American and British English male/female voices.
+- 28 American and British English male/female voices, with previews, favourites, accent filters and individual or all-at-once downloads.
 - Preview a narrator, adjust speed live from 0.5 to 2.0 without restarting, pause, resume and stop.
 - Reopen a book at its saved audio position, with the saved voice and speed. Press Ctrl+B to name a bookmark; use Bookmarks to jump, rename or delete it.
 - CPU inference; no paid service or GPU required.

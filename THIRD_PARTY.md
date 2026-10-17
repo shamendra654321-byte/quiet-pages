@@ -25,3 +25,5 @@ Upstream source:
 - https://github.com/python/cpython
 
 Model assets: https://github.com/thewh1teagle/kokoro-onnx/releases/tag/model-files-v1.1
+
+Individual English voice downloads are unchanged arrays extracted from the upstream voices-v1.0.bin into NumPy files by publish_voices.py. Copyright and Apache-2.0 attribution belong to hexgrad/Kokoro-82M. The voice-data release includes the license and source attribution; app packages include Kokoro-LICENSE.txt.

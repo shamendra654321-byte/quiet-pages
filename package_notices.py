@@ -19,6 +19,7 @@ for name in ('README.md', 'THIRD_PARTY.md', 'LICENSE', 'COPYING', 'VALIDATION.md
     shutil.copy2(name, destination / name)
 # RapidOCR's 1.4.4 wheel does not include its upstream Apache license.
 for name, url in {
+    'Kokoro-LICENSE.txt': 'https://raw.githubusercontent.com/hexgrad/kokoro/main/LICENSE',
     'RapidOCR-LICENSE.txt': 'https://raw.githubusercontent.com/RapidAI/RapidOCR/v1.4.4/LICENSE',
     'PaddleOCR-LICENSE.txt': 'https://raw.githubusercontent.com/PaddlePaddle/PaddleOCR/release/2.7/LICENSE',
 }.items():

@@ -1,9 +1,11 @@
-# Remember your place, down to the audio position
+# More voices, favourites and offline downloads
 
-Talevoxa now saves your position inside a passage when you stop or close the app. Reopen the same book and press Play to continue with your saved voice and speed. Progress also saves every second while listening.
+Open More voices / downloads to explore all 28 English Kokoro voices, including Aoede, Kore, Sarah, Puck and Lewis. Preview the same short story with each voice, then choose Use voice. Stop playback before switching or previewing a narrator.
 
-Press Ctrl+B to add a named bookmark. Open Bookmarks to jump to a saved moment, rename it or delete it. Each book keeps its own bookmarks alongside its current reading position.
+Your nine familiar voices remain favourites. Add or remove favourites to keep the main selector personal; filter the browser by favourites, American, British or downloaded voices.
 
-Changing speed preserves the position. Changing narrator resumes from the saved word when word timing is available, or the containing section otherwise. Audio-device latency can slightly affect the audible boundary; a crash can lose about one second of progress. Old saved passage positions remain compatible.
+Download selected saves one voice; Download all 28 saves every English voice. Both also download the shared engine if needed. Each voice is about 0.5 MB; all voices total about 15 MB, with a shared 326 MB engine downloaded once. Existing full voice packs are reused. Downloads show progress, can be cancelled and retried, and verify individual voice files before use.
 
-Existing users can install this release using Check updates inside the app. Download filenames and the storage folder keep their original Quiet Pages names for compatibility. This preview remains unsigned.
+All 28 voices passed speech-generation checks. Heart and Bella remain our suggested starting points based on upstream training-data ratings. The other voices vary in consistency; those ratings are not listening scores, and previews are the best way to choose a comfortable narrator. This release does not claim a long-form human listening review of every voice.
+
+Exact-position resume and named bookmarks remain available. This Windows preview is free and unsigned. Use Check updates inside the app to install it.
