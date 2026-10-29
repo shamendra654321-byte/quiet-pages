@@ -79,3 +79,12 @@ class CoverShelf:
         except Exception as error:
             messagebox.showerror('Cover image',str(error));return
         self.render_covers()
+
+    def find_cover_online(self):
+        book = self.selected_book()
+        if not book: return
+        previous = getattr(self, 'cover_search', None)
+        if previous and not previous.closed:
+            previous.close()
+        from cover_search import CoverSearch
+        self.cover_search = CoverSearch(self, book)

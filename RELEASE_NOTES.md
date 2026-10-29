@@ -1,9 +1,9 @@
-# Book covers and uninterrupted reading
+# Find real book covers online
 
-The bookshelf now opens in a visual cover view. EPUB books use embedded cover artwork, PDFs show their first page, and Word documents can use an embedded thumbnail. Books without artwork get a coloured title cover. Select a book and choose Choose cover to use your own PNG, JPEG or WebP image. Covers stay local and original books are unchanged.
+Select a book on your bookshelf and choose Find online. Check the title, optionally enter the author, then Search to see real cover previews from Open Library. Choose a match and press Use selected cover. You can replace missing artwork or pick a different cover for any book.
 
-Search, finished filters and Continue reading work with covers. Switch to List for the compact table. Existing bookshelf entries get available artwork in the background.
+Only the title and optional author you enter are sent for the search; your book file and reading history stay on your PC. Searches are started by you, and selected covers are saved locally for offline use. No account or API key is needed. Results may be for a different edition, and some books have no cover available.
 
-Fixed the Nothing to synthesize / produced no phonemes error on decorative scene breaks. Playback skips unpronounceable sections and continues to the next spoken text, including across chapters. Original text, saved positions and bookmarks are preserved.
+Existing embedded covers, Choose cover for local images, saved positions and bookmarks are preserved. Connection errors or cancelling a search leave your current cover unchanged.
 
 Use Check updates in Talevoxa to install this Windows preview.

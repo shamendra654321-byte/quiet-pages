@@ -94,7 +94,7 @@ class Bookshelf(CoverShelf):
         self.set_shelf_view()
         actions = ttk.Frame(self.shelf)
         actions.grid(row=4, column=0, sticky='ew', pady=12)
-        for title, command in [('Open selected', self.open_selected_book), ('Finished / unread', self.toggle_finished), ('Choose cover', self.choose_cover), ('Locate file', self.locate_book), ('Remove from shelf', self.remove_book)]:
+        for title, command in [('Open', self.open_selected_book), ('Finished / unread', self.toggle_finished), ('Choose cover', self.choose_cover), ('Find online', self.find_cover_online), ('Locate file', self.locate_book), ('Remove', self.remove_book)]:
             ttk.Button(actions, text=title, command=command).pack(side='left', padx=(0, 6))
         self.shelf_hint = ttk.Label(self.shelf, style='Muted.TLabel', wraplength=650)
         self.shelf_hint.grid(row=5, column=0, sticky='ew')

@@ -697,6 +697,9 @@ class Reader(VoiceBrowser, Bookshelf):
         self.root.after(20, self.poll)
 
     def close(self):
+        search = getattr(self, 'cover_search', None)
+        if search and not search.closed:
+            search.close()
         self.stop()
         self.update_cancel.set()
         self.voice_download_cancel.set()

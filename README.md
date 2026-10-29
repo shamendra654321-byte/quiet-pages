@@ -100,3 +100,7 @@ Opened books appear automatically on the local bookshelf. Search titles, filter 
 ## Cover view
 
 The bookshelf shows embedded EPUB covers, PDF first-page previews and supported Word thumbnails. Choose cover adds a local PNG/JPEG/WebP image to any book. Missing artwork uses a coloured title cover. Switch between Covers and List without losing search, selection or saved progress. Cover extraction stays offline. Decorative scene breaks are skipped during speech without altering book text or saved positions.
+
+## Find online covers
+
+Select a bookshelf book and choose Find online. Search by title and optional author, inspect Open Library previews, then Use selected cover. No background title searches occur. Only entered search terms and requested cover IDs are sent to Open Library; book files and reading history stay local. Selected images remain available offline. Matches can be different editions; coverage depends on Open Library. API documentation: https://openlibrary.org/dev/docs/api/search and https://openlibrary.org/dev/docs/api/covers.
