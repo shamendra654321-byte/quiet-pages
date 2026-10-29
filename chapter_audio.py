@@ -41,23 +41,32 @@ def read_book(engine, parts, start, end, chapter_starts, voice, speed, cancel,
                             state['blocked'] = False
                         if stopped():
                             return
-                        cached = cache.get(text, voice, speed) if cache and not preview else None
-                        active_engine = engine() if cached is None and callable(engine) else engine
-                        if cached is not None:
-                            samples, rate, words = cached
-                        elif getattr(active_engine, 'has_timings', False):
-                            samples, rate, spoken = active_engine.create_timed(text, voice=voice, speed=speed, lang=lang)
-                            # Resolve lazy engines only on a cache miss.
-                            def active_phonemize(word):
-                                if word not in pronunciation_cache:
-                                    if len(pronunciation_cache) >= 4096:
-                                        pronunciation_cache.clear()
-                                    pronunciation_cache[word] = active_engine.tokenizer.phonemize(word, lang)
-                                return pronunciation_cache[word]
-                            words = word_timings(text, spoken, active_phonemize) if not preview else []
-                        else:
-                            samples, rate = active_engine.create(text, voice=voice, speed=speed, lang=lang)
-                            words = []
+                        if not any(c.isalnum() for c in text):
+                            continue
+                        try:
+                            cached = cache.get(text, voice, speed) if cache and not preview else None
+                            active_engine = engine() if cached is None and callable(engine) else engine
+                            if cached is not None:
+                                samples, rate, words = cached
+                            elif getattr(active_engine, 'has_timings', False):
+                                samples, rate, spoken = active_engine.create_timed(text, voice=voice, speed=speed, lang=lang)
+                                # Resolve lazy engines only on a cache miss.
+                                def active_phonemize(word):
+                                    if word not in pronunciation_cache:
+                                        if len(pronunciation_cache) >= 4096:
+                                            pronunciation_cache.clear()
+                                        pronunciation_cache[word] = active_engine.tokenizer.phonemize(word, lang)
+                                    return pronunciation_cache[word]
+                                words = word_timings(text, spoken, active_phonemize) if not preview else []
+                            else:
+                                samples, rate = active_engine.create(text, voice=voice, speed=speed, lang=lang)
+                                words = []
+                        except ValueError as error:
+                            # Kokoro cannot voice some decorative/unsupported text.
+                            # Keep the original book text and offsets for saved positions.
+                            if str(error).startswith('Nothing to synthesize,') and str(error).endswith('produced no phonemes'):
+                                continue
+                            raise
                         if stopped():
                             return
                         samples = np.asarray(samples, dtype=np.float32).reshape(-1)
@@ -91,6 +100,7 @@ def read_book(engine, parts, start, end, chapter_starts, voice, speed, cancel,
                             condition.notify_all()
                         ready.put((path, rate, index, offset, words, size, section_start + skip/rate))
                         serial += 1
+                    ready.put(('passage_done', index))
                     if not preview:
                         events.put(('duration', (index, elapsed)))
                     if index + 1 == end or chapter_for(index + 1) != chapter:
@@ -136,6 +146,11 @@ def read_book(engine, parts, start, end, chapter_starts, voice, speed, cancel,
                         break
                     if isinstance(item, Exception):
                         raise item
+                    if item[0] == 'passage_done':
+                        with condition:
+                            state['chapter'] = chapter_for(min(item[1] + 1, end - 1))
+                            condition.notify_all()
+                        continue
                     path, sample_rate, index, text_offset, words, size, section_start = item
                     samples = np.load(path, allow_pickle=False)
                     path.unlink()

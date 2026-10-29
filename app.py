@@ -609,6 +609,10 @@ class Reader(VoiceBrowser, Bookshelf):
                         self.status.configure(text='Reading aloud · Next chapter ready')
                 elif kind == 'duration':
                     self.durations[value[0]] = value[1]
+                elif kind == 'covers_ready':
+                    self.cover_loading = False
+                    self.render_covers()
+                    self.load_covers()
                 elif kind == 'book':
                     self.shown_chapter = None
                     name, book, self.book_id = value

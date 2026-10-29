@@ -1,6 +1,9 @@
 """Local PDF extraction, conservative margin cleanup and offline scan OCR."""
 from collections import Counter
 import re
+import threading
+
+PDF_RENDER_LOCK = threading.RLock()
 
 
 def clean_pages(pages, clean=True):
@@ -24,6 +27,12 @@ def clean_pages(pages, clean=True):
 
 
 def extract_pages(path, reader, progress=None, cancel=None, clean=True):
+    # PDFium is shared with background cover rendering and is not thread-safe.
+    with PDF_RENDER_LOCK:
+        return _extract_pages(path, reader, progress, cancel, clean)
+
+
+def _extract_pages(path, reader, progress=None, cancel=None, clean=True):
     progress = progress or (lambda text: None)
     def check():
         if cancel is not None and cancel.is_set():

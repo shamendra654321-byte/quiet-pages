@@ -33,8 +33,15 @@ class Library:
             db.execute('UPDATE books SET finished=? WHERE id=?', (int(value), identity))
 
 
-class Bookshelf:
+from cover_shelf import CoverShelf
+from covers import CoverStore
+import threading
+
+class Bookshelf(CoverShelf):
     def build_bookshelf(self, shell):
+        self.cover_store = CoverStore(self.library.path.parent / 'covers')
+        self.cover_loading = False
+        self.cover_attempted = set()
         self.shelf = ttk.Frame(shell)
         self.shelf.columnconfigure(0, weight=1)
         self.shelf.rowconfigure(3, weight=1)
@@ -66,21 +73,28 @@ class Bookshelf:
         choice.grid(row=0, column=2, padx=(10, 0))
         choice.bind('<<ComboboxSelected>>', lambda e: self.refresh_bookshelf())
         self.shelf_search.trace_add('write', lambda *args: self.refresh_bookshelf())
+        self.shelf_view = tk.StringVar(value='Covers')
+        view = ttk.Combobox(filters, values=['Covers','List'], textvariable=self.shelf_view, state='readonly', width=7)
+        view.grid(row=0,column=3,padx=(8,0))
+        view.bind('<<ComboboxSelected>>', lambda e:self.set_shelf_view())
         area = ttk.Frame(self.shelf)
         area.grid(row=3, column=0, sticky='nsew')
-        self.book_table = ttk.Treeview(area, columns=('title', 'place', 'state'), show='headings', selectmode='browse', height=4)
+        self.build_cover_shelf(area)
+        self.list_area = ttk.Frame(area)
+        self.book_table = ttk.Treeview(self.list_area, columns=('title', 'place', 'state'), show='headings', selectmode='browse', height=4)
         for name, heading, width in [('title', 'BOOK', 360), ('place', 'SAVED PLACE', 170), ('state', 'STATUS', 120)]:
             self.book_table.heading(name, text=heading)
             self.book_table.column(name, width=width, minwidth=70)
-        scroll = ttk.Scrollbar(area, command=self.book_table.yview)
+        scroll = ttk.Scrollbar(self.list_area, command=self.book_table.yview)
         scroll.pack(side='right', fill='y')
         self.book_table.configure(yscrollcommand=scroll.set)
         self.book_table.pack(fill='both', expand=True)
         self.book_table.bind('<Double-Button-1>', lambda e: self.open_selected_book())
         self.book_table.bind('<Return>', lambda e: self.open_selected_book())
+        self.set_shelf_view()
         actions = ttk.Frame(self.shelf)
         actions.grid(row=4, column=0, sticky='ew', pady=12)
-        for title, command in [('Open selected', self.open_selected_book), ('Mark finished / unread', self.toggle_finished), ('Locate file', self.locate_book), ('Remove from shelf', self.remove_book)]:
+        for title, command in [('Open selected', self.open_selected_book), ('Finished / unread', self.toggle_finished), ('Choose cover', self.choose_cover), ('Locate file', self.locate_book), ('Remove from shelf', self.remove_book)]:
             ttk.Button(actions, text=title, command=command).pack(side='left', padx=(0, 6))
         self.shelf_hint = ttk.Label(self.shelf, style='Muted.TLabel', wraplength=650)
         self.shelf_hint.grid(row=5, column=0, sticky='ew')
@@ -129,6 +143,8 @@ class Bookshelf:
         ids = self.book_table.get_children()
         if ids:
             self.book_table.selection_set(selected[0] if selected and selected[0] in ids else ids[0])
+        self.render_covers()
+        self.load_covers()
         self.shelf_hint.configure(text=f'{len(ids)} books shown · Double-click a book to open it. Removing a book from this shelf keeps its file and saved place.' if ids else 'No books found. Open a book to add it, or clear the search and filters.')
 
     def selected_book(self):
@@ -175,3 +191,18 @@ class Bookshelf:
         if book and messagebox.askyesno('Remove from bookshelf', 'Remove this entry from the bookshelf? The original book, saved place and bookmarks will be kept.'):
             self.library.remove(book['id'])
             self.refresh_bookshelf()
+
+    def load_covers(self):
+        if self.cover_loading: return
+        pending=[b for b in self.shelf_books.values() if (b['id'],b['path']) not in self.cover_attempted]
+        if not pending: return
+        self.cover_loading=True
+        self.cover_attempted.update((b['id'],b['path']) for b in pending)
+        def work():
+            try:
+                for book in pending:
+                    self.cover_store.ensure(book)
+            finally:
+                self.events.put(('covers_ready',None))
+        self.cover_thread = threading.Thread(target=work,daemon=True)
+        self.cover_thread.start()

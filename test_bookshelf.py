@@ -18,6 +18,7 @@ class LibraryTests(unittest.TestCase):
 class ShelfTests(unittest.TestCase):
     setUp=test_playback.PlaybackTests.setUp
     def tearDown(self):
+        if hasattr(self.reader,'cover_thread'): self.reader.cover_thread.join(timeout=5)
         for callback in self.root.tk.call('after','info'):
             self.root.after_cancel(callback)
         test_playback.PlaybackTests.tearDown(self)
@@ -47,3 +48,14 @@ class ShelfTests(unittest.TestCase):
         self.reader.shelf_search.set('RIVER'); self.assertEqual(self.reader.book_table.get_children(),('a',))
         self.reader.shelf_search.set(''); self.reader.shelf_filter.set('Finished'); self.reader.refresh_bookshelf()
         self.assertEqual(self.reader.book_table.get_children(),('b',)); self.assertEqual(self.reader.recent_id,'a')
+
+    def test_cover_selection_and_list_switch_keep_book(self):
+        self.reader.library.remember('a','First','a.txt'); self.reader.library.remember('b','Second','b.txt')
+        self.reader.refresh_bookshelf(); self.reader.select_cover('b')
+        self.assertEqual(self.reader.selected_book()['id'],'b')
+        self.assertEqual(len(self.reader.cover_cards),2)
+        self.reader.shelf_view.set('List'); self.reader.set_shelf_view()
+        self.assertEqual(self.reader.selected_book()['id'],'b')
+        self.reader.shelf_search.set('First')
+        self.assertEqual(len(self.reader.cover_cards),1)
+        self.assertEqual(self.reader.selected_book()['id'],'a')

@@ -61,6 +61,13 @@ def run():
     assert len(words) == sum(len(part.split()) for part in parts), 'Missing word timestamps'
     assert [parts[i][left:right] for i, left, right in words] == ' '.join(parts).split()
     results.append(f'Streaming: first audio {first_audio[0]:.2f}s after engine load; {len(words)} timed words, two chapters, live tempo 1 / 1.7 / 0.8')
+    decorated = ['The story begins.', '\u2726 \u2726 \u2726', '***', '\u2014', 'The story continues.']
+    separator_events = queue.Queue()
+    read_book(engine, decorated, 0, len(decorated), [0,1,2,3,4], 'af_heart', 1,
+              threading.Event(), threading.Event(), separator_events, RecordingStream, buffer_seconds=10)
+    read_positions = [value[2] for kind,value in list(separator_events.queue) if kind == 'at' and value[1] == 'position']
+    assert read_positions == [0,4], 'Decorative separators interrupted or changed reading order'
+    results.append('Decorative separator regression passed across three symbol-only chapters')
     with tempfile.TemporaryDirectory() as folder:
         cache = AudioCache(Path(folder) / 'cache')
         for attempt in range(2):
@@ -76,6 +83,14 @@ def run():
         scan = Path(folder) / 'scan.pdf'
         image.save(scan, 'PDF')
         assert 'quiet garden' in ' '.join(load_document(scan).parts).lower()
+        from covers import extract_cover
+        from PIL import ImageTk
+        cover = Path(folder) / 'cover.png'
+        assert extract_cover(scan, cover), 'PDF cover extraction failed'
+        with Image.open(cover) as thumbnail:
+            photo = ImageTk.PhotoImage(thumbnail, master=root)
+            assert photo.width() <= 240 and photo.height() <= 330
+        results.append('Cover extraction and thumbnail display passed')
     results.append('Persistent cache replay and offline scanned PDF recognition passed')
     root.destroy()
     (DATA / 'smoke-test.txt').write_text('\n'.join(results), encoding='utf-8')

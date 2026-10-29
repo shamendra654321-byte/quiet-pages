@@ -1,9 +1,9 @@
-# Your books, easy to find
+# Book covers and uninterrupted reading
 
-Talevoxa now opens on your personal bookshelf. Books you open are remembered automatically, with search, saved chapter labels and filters for in-progress or finished books.
+The bookshelf now opens in a visual cover view. EPUB books use embedded cover artwork, PDFs show their first page, and Word documents can use an embedded thumbnail. Books without artwork get a coloured title cover. Select a book and choose Choose cover to use your own PNG, JPEG or WebP image. Covers stay local and original books are unchanged.
 
-Continue reading opens your most recent unfinished book at its saved position and starts playback. Double-click any book to open it without starting audio. Mark books finished, or use Locate file if a book has moved. Removing a bookshelf entry keeps the original file, saved position and bookmarks.
+Search, finished filters and Continue reading work with covers. Switch to List for the compact table. Existing bookshelf entries get available artwork in the background.
 
-Books opened in older versions appear on the shelf after you open them once in this update; existing saved positions and bookmarks are preserved. Books remain on your own computer.
+Fixed the Nothing to synthesize / produced no phonemes error on decorative scene breaks. Playback skips unpronounceable sections and continues to the next spoken text, including across chapters. Original text, saved positions and bookmarks are preserved.
 
-Use Check updates inside Talevoxa to install this release. This Windows preview remains unsigned.
+Use Check updates in Talevoxa to install this Windows preview.

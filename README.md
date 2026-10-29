@@ -96,3 +96,7 @@ Speed changes apply to the audio currently playing, in small pitch-preserving WS
 ## Bookshelf and Continue reading
 
 Opened books appear automatically on the local bookshelf. Search titles, filter finished books, or choose Continue reading to resume the most recent unfinished book at its saved position. Locate file reconnects a moved book after verifying its text. Removing an entry never deletes the original file or saved progress. Older books appear after opening them once in this version.
+
+## Cover view
+
+The bookshelf shows embedded EPUB covers, PDF first-page previews and supported Word thumbnails. Choose cover adds a local PNG/JPEG/WebP image to any book. Missing artwork uses a coloured title cover. Switch between Covers and List without losing search, selection or saved progress. Cover extraction stays offline. Decorative scene breaks are skipped during speech without altering book text or saved positions.
