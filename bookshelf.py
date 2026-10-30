@@ -52,6 +52,7 @@ class Bookshelf(CoverShelf):
         ttk.Button(intro, text='Find missing covers', command=self.find_missing_covers).pack(side='right', padx=8)
         ttk.Label(intro, text='Your bookshelf', font=('Georgia', 25)).pack(anchor='w')
         ttk.Label(intro, text='Your stories, ready when you are.', style='Muted.TLabel').pack(anchor='w', pady=(4, 0))
+        ttk.Label(intro, text='New-book cover search sends missing-cover titles to Open Library. Manage it in Covers.', style='Muted.TLabel', wraplength=650).pack(anchor='w')
         recent = ttk.Frame(self.shelf, padding=18)
         recent.grid(row=1, column=0, sticky='ew', pady=(0, 18))
         recent.columnconfigure(0, weight=1)

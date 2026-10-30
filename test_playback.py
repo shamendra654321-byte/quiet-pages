@@ -31,6 +31,7 @@ class PlaybackTests(unittest.TestCase):
         self.patch.start()
         self.root = tk.Tk()
         self.reader = app.Reader(self.root)
+        self.reader.auto_covers.set(False)
         self.engine = FakeEngine()
         self.reader.engine = self.engine
         book = Book([Chapter('One', ['First.', 'More.']), Chapter('Two', ['Last.'])])
@@ -39,6 +40,7 @@ class PlaybackTests(unittest.TestCase):
         self.reader.set_busy(False)
 
     def tearDown(self):
+        self.reader.automatic_covers.stop()
         self.root.destroy()
         self.patch.stop()
         self.temp.cleanup()

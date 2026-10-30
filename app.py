@@ -89,6 +89,7 @@ class Reader(VoiceBrowser, Bookshelf):
         self.voice_store = VoiceStore(DATA)
         self.init_voices()
         self.auto_updates = tk.BooleanVar(value=self.preferences.get('auto_updates', True))
+        self.auto_covers = tk.BooleanVar(value=self.preferences.get('auto_covers', True))
         menu = tk.Menu(root)
         help_menu = tk.Menu(menu, tearoff=False)
         help_menu.add_command(label='Check for updates', command=self.check_updates)
@@ -97,6 +98,12 @@ class Reader(VoiceBrowser, Bookshelf):
         help_menu.add_command(label=f'About Talevoxa ({VERSION})', command=lambda: messagebox.showinfo(
             'Talevoxa', f'Talevoxa {VERSION}\nFree, private book listening.\nUpdates come from the official Talevoxa GitHub project.'))
         menu.add_cascade(label='Help', menu=help_menu)
+        covers_menu = tk.Menu(menu, tearoff=False)
+        covers_menu.add_checkbutton(label='Find covers automatically for new books', variable=self.auto_covers,
+                                    command=self.change_auto_covers)
+        covers_menu.add_command(label='About online covers', command=lambda: messagebox.showinfo(
+            'Online covers', 'Automatic covers are on by default for newly added books. If embedded artwork is missing, the book title is sent to Open Library. Book files and reading history stay on this PC. Exact-title matches with one author are saved; editions may differ. Turn this off in the Covers menu to keep new-book imports offline. Existing books are not searched automatically.'))
+        menu.add_cascade(label='Covers', menu=covers_menu)
         bookmarks_menu = tk.Menu(menu, tearoff=False)
         bookmarks_menu.add_command(label='Add bookmark…', command=self.add_bookmark, accelerator='Ctrl+B')
         bookmarks_menu.add_command(label='Show bookmarks…', command=self.show_bookmarks)
@@ -105,6 +112,8 @@ class Reader(VoiceBrowser, Bookshelf):
         root.configure(menu=menu)
         from reader_ui import build_reader
         build_reader(self, help_menu, VOICES)
+        from automatic_covers import AutomaticCovers
+        self.automatic_covers = AutomaticCovers(self.cover_store, self.events)
         root.protocol('WM_DELETE_WINDOW', self.close)
         root.after(100, self.poll)
         if getattr(sys, 'frozen', False) and self.auto_updates.get():
@@ -112,7 +121,14 @@ class Reader(VoiceBrowser, Bookshelf):
 
     def save_preferences(self):
         self.preferences['auto_updates'] = self.auto_updates.get()
+        self.preferences['auto_covers'] = self.auto_covers.get()
         (DATA / 'preferences.json').write_text(json.dumps(self.preferences), encoding='utf-8')
+
+    def change_auto_covers(self):
+        self.automatic_covers.stop()
+        from automatic_covers import AutomaticCovers
+        self.automatic_covers = AutomaticCovers(self.cover_store, self.events)
+        self.save_preferences()
 
     def check_updates(self, manual=True):
         if self.update_busy:
@@ -609,6 +625,10 @@ class Reader(VoiceBrowser, Bookshelf):
                         self.status.configure(text='Reading aloud · Next chapter ready')
                 elif kind == 'duration':
                     self.durations[value[0]] = value[1]
+                elif kind == 'automatic_cover':
+                    service, identity, data = value
+                    if self.auto_covers.get() and service is self.automatic_covers:
+                        if service.apply(identity, data, self.library): self.render_covers()
                 elif kind == 'covers_ready':
                     self.cover_loading = False
                     self.render_covers()
@@ -625,7 +645,10 @@ class Reader(VoiceBrowser, Bookshelf):
                     self.audio_settings = None
                     self.apply_position(self.saved.get(self.book_id, 0))
                     if self.opening_path:
+                        is_new = self.book_id not in {b['id'] for b in self.library.books()}
                         self.library.remember(self.book_id, name, self.opening_path)
+                        if is_new and self.auto_covers.get():
+                            self.automatic_covers.add({'id': self.book_id, 'title': name, 'path': self.opening_path})
                         self.opening_success = True
                     self.show_reader()
                 elif kind == 'error':
@@ -697,6 +720,7 @@ class Reader(VoiceBrowser, Bookshelf):
         self.root.after(20, self.poll)
 
     def close(self):
+        self.automatic_covers.stop()
         batch = getattr(self, 'batch_covers', None)
         if batch and not batch.closed:
             batch.close()
