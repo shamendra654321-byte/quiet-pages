@@ -103,4 +103,6 @@ The bookshelf shows embedded EPUB covers, PDF first-page previews and supported 
 
 ## Find online covers
 
+For the entire library, choose Find missing covers at the top of the bookshelf and start the search. Existing artwork is preserved. Exact normalized title matches sharing one known author are applied automatically; uncertain results need review. Results can show a different edition. Progress, cancellation, and individual review are available; retry skips saved covers. The batch includes finished and filtered-out books and sends missing-cover titles to Open Library only after you start it.
+
 Select a bookshelf book and choose Find online. Search by title and optional author, inspect Open Library previews, then Use selected cover. No background title searches occur. Only entered search terms and requested cover IDs are sent to Open Library; book files and reading history stay local. Selected images remain available offline. Matches can be different editions; coverage depends on Open Library. API documentation: https://openlibrary.org/dev/docs/api/search and https://openlibrary.org/dev/docs/api/covers.

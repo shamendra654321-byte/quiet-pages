@@ -5,6 +5,13 @@ from tkinter import ttk, filedialog, messagebox
 from PIL import Image, ImageTk
 
 class CoverShelf:
+    def find_missing_covers(self):
+        previous = getattr(self, 'batch_covers', None)
+        if previous and not previous.closed:
+            previous.window.lift(); return
+        from batch_covers import BatchCovers
+        self.batch_covers = BatchCovers(self)
+
     def build_cover_shelf(self, area):
         self.cover_area = ttk.Frame(area)
         self.cover_canvas = tk.Canvas(self.cover_area, bg='#f2f4f1', highlightthickness=0, height=100)

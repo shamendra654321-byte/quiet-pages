@@ -76,12 +76,17 @@ def extract_cover(book, target):
 class CoverStore:
     def __init__(self, folder):
         self.lock = threading.RLock()
+        self.extraction_lock = threading.Lock()
         self.folder = Path(folder); self.folder.mkdir(parents=True, exist_ok=True)
     def path(self, identity):
         # Hash the key too: library IDs from old versions need not be hex strings.
         import hashlib
         return self.folder / (hashlib.sha256(identity.encode()).hexdigest() + '.png')
     def ensure(self, book):
+        with self.extraction_lock:
+            self._ensure(book)
+
+    def _ensure(self, book):
         if not Path(book['path']).is_file(): return
         target = self.path(book['id'])
         marker = target.with_suffix('.checked')

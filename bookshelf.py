@@ -49,6 +49,7 @@ class Bookshelf(CoverShelf):
         intro.grid(row=0, column=0, sticky='ew', pady=(0, 16))
         self.return_button = ttk.Button(intro, text='Back to book', command=self.show_reader)
         self.return_button.pack(side='right')
+        ttk.Button(intro, text='Find missing covers', command=self.find_missing_covers).pack(side='right', padx=8)
         ttk.Label(intro, text='Your bookshelf', font=('Georgia', 25)).pack(anchor='w')
         ttk.Label(intro, text='Your stories, ready when you are.', style='Muted.TLabel').pack(anchor='w', pady=(4, 0))
         recent = ttk.Frame(self.shelf, padding=18)

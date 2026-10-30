@@ -1,4 +1,12 @@
-# Find real book covers online
+# Find missing covers for your whole bookshelf
+
+Choose Find missing covers at the top of the bookshelf, then start the batch search. Talevoxa checks every book, including finished books and books hidden by search filters. Existing covers and embedded artwork are kept.
+
+Exact title matches with a single known author are saved automatically from Open Library. Uncertain matches are marked Needs review; select a result and choose Review selected book to pick a cover yourself. Editions may differ, and not every book has a match.
+
+Watch progress or Stop at any time. Covers already saved stay available offline. Retry checks only books still missing artwork. Only missing-cover titles and cover requests are sent online; your books and reading history remain on this PC.
+
+## Individual cover search
 
 Select a book on your bookshelf and choose Find online. Check the title, optionally enter the author, then Search to see real cover previews from Open Library. Choose a match and press Use selected cover. You can replace missing artwork or pick a different cover for any book.
 
