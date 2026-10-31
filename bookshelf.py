@@ -4,7 +4,8 @@ import time
 from contextlib import closing
 from pathlib import Path
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox, simpledialog
+from book_details import read_details, sorted_books, series_label
 
 
 class Library:
@@ -14,10 +15,25 @@ class Library:
         with closing(sqlite3.connect(self.path)) as db, db:
             db.execute('CREATE TABLE IF NOT EXISTS books (id TEXT PRIMARY KEY, title TEXT NOT NULL, path TEXT NOT NULL, opened REAL NOT NULL, finished INTEGER NOT NULL DEFAULT 0)')
 
+            columns = {r[1] for r in db.execute('PRAGMA table_info(books)')}
+            for field in ('author', 'series', 'series_number'):
+                if field not in columns: db.execute(f"ALTER TABLE books ADD COLUMN {field} TEXT NOT NULL DEFAULT ''")
+
+    def set_details(self, identity, author, series, number):
+        from book_details import valid_number
+        number = valid_number(number)
+        with closing(sqlite3.connect(self.path)) as db, db:
+            db.execute('UPDATE books SET author=?,series=?,series_number=? WHERE id=?', (author.strip(),series.strip(),number,identity))
+
     def remember(self, identity, title, path):
         with closing(sqlite3.connect(self.path)) as db, db:
+            is_new = db.execute('SELECT 1 FROM books WHERE id=?', (identity,)).fetchone() is None
             db.execute('INSERT INTO books(id,title,path,opened) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,path=excluded.path,opened=excluded.opened',
                        (identity, title, str(Path(path).resolve()), time.time()))
+
+        if is_new:
+            author, series, number = read_details(path)
+            self.set_details(identity, author, series, number)
 
     def books(self):
         with closing(sqlite3.connect(self.path)) as db:
@@ -79,12 +95,18 @@ class Bookshelf(CoverShelf):
         view = ttk.Combobox(filters, values=['Covers','List'], textvariable=self.shelf_view, state='readonly', width=7)
         view.grid(row=0,column=3,padx=(8,0))
         view.bind('<<ComboboxSelected>>', lambda e:self.set_shelf_view())
+        self.shelf_sort = tk.StringVar(value=self.preferences.get('shelf_sort', 'Recently opened'))
+        ttk.Label(filters,text='Sort by').grid(row=1,column=0,pady=(8,0))
+        sort = ttk.Combobox(filters,values=['Recently opened','Author','Series','Title'],textvariable=self.shelf_sort,state='readonly',width=20)
+        sort.grid(row=1,column=1,sticky='w',pady=(8,0))
+        sort.bind('<<ComboboxSelected>>',lambda e:self.sort_changed())
+        ttk.Button(filters,text='Edit book details',command=self.edit_book_details).grid(row=1,column=2,columnspan=2,pady=(8,0))
         area = ttk.Frame(self.shelf)
         area.grid(row=3, column=0, sticky='nsew')
         self.build_cover_shelf(area)
         self.list_area = ttk.Frame(area)
-        self.book_table = ttk.Treeview(self.list_area, columns=('title', 'place', 'state'), show='headings', selectmode='browse', height=4)
-        for name, heading, width in [('title', 'BOOK', 360), ('place', 'SAVED PLACE', 170), ('state', 'STATUS', 120)]:
+        self.book_table = ttk.Treeview(self.list_area, columns=('title', 'author', 'series', 'place', 'state'), show='headings', selectmode='browse', height=4)
+        for name, heading, width in [('title', 'BOOK', 200), ('author', 'AUTHOR', 120), ('series', 'SERIES', 160), ('place', 'SAVED PLACE', 170), ('state', 'STATUS', 120)]:
             self.book_table.heading(name, text=heading)
             self.book_table.column(name, width=width, minwidth=70)
         scroll = ttk.Scrollbar(self.list_area, command=self.book_table.yview)
@@ -100,6 +122,16 @@ class Bookshelf(CoverShelf):
             ttk.Button(actions, text=title, command=command).pack(side='left', padx=(0, 6))
         self.shelf_hint = ttk.Label(self.shelf, style='Muted.TLabel', wraplength=650)
         self.shelf_hint.grid(row=5, column=0, sticky='ew')
+
+    def sort_changed(self):
+        self.preferences['shelf_sort'] = self.shelf_sort.get()
+        self.save_preferences(); self.refresh_bookshelf()
+
+    def edit_book_details(self):
+        book = self.selected_book()
+        if not book: return
+        from book_details import DetailsDialog
+        DetailsDialog(self, book)
 
     def show_bookshelf(self):
         if self.busy:
@@ -138,10 +170,10 @@ class Bookshelf(CoverShelf):
         self.book_table.delete(*self.book_table.get_children())
         query = self.shelf_search.get().casefold().strip()
         mode = self.shelf_filter.get()
-        for b in self.shelf_books.values():
-            if query not in b['title'].casefold() or mode == 'Finished' and not b['finished'] or mode == 'In progress' and b['finished']:
+        for b in sorted_books(self.shelf_books.values(), self.shelf_sort.get()):
+            if query not in ' '.join((b['title'],b['author'],b['series'])).casefold() or mode == 'Finished' and not b['finished'] or mode == 'In progress' and b['finished']:
                 continue
-            self.book_table.insert('', 'end', iid=b['id'], values=(b['title'], self.saved_place(b['id']), 'Finished' if b['finished'] else 'In progress'))
+            self.book_table.insert('', 'end', iid=b['id'], values=(b['title'], b['author'], series_label(b), self.saved_place(b['id']), 'Finished' if b['finished'] else 'In progress'))
         ids = self.book_table.get_children()
         if ids:
             self.book_table.selection_set(selected[0] if selected and selected[0] in ids else ids[0])

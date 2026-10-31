@@ -63,6 +63,8 @@ class CoverShelf:
                 art.create_text(80,86,text=book['title'][:95],width=112,fill='white',font=('Georgia',14),justify='center')
                 art.create_text(80,162,text='TALEVOXA',fill='#e5e8e2',font=('Segoe UI',8))
             title=ttk.Label(card,text=book['title'][:80],wraplength=155,font=('Segoe UI Semibold',10),justify='center',anchor='center');title.pack(fill='x',pady=(6,2))
+            from book_details import series_label
+            ttk.Label(card,text=' - '.join(filter(None,[book.get('author',''),series_label(book)])),wraplength=155,justify='center',anchor='center').pack(fill='x')
             detail=ttk.Label(card,text='Finished' if book['finished'] else self.saved_place(identity),wraplength=155,style='Muted.TLabel',anchor='center');detail.pack(fill='x')
             for widget in (card,art,title,detail):
                 widget.bind('<Button-1>', lambda e,k=identity:self.select_cover(k))
